@@ -1,0 +1,50 @@
+{
+  "format": 1,
+  "title": {
+    "zh": "ASCII 场景主题",
+    "en": "ASCII Scenes"
+  },
+  "plugins": [
+    {
+      "name": "dsh-ascii-scenes",
+      "title": {
+        "zh": "ASCII 场景主题",
+        "en": "ASCII Scenes"
+      },
+      "description": {
+        "zh": "八套可交互的字符场景：暖夜、浮云、海龟、锦鲤、水母、纸船、萤火和月色。支持主题切换、静态模式及原生外观恢复。",
+        "en": "Eight interactive character-painted ambient themes: warm night, clouds, turtles, koi, jellyfish, paper boats, fireflies, and moonlight."
+      },
+      "icon": "https://raw.githubusercontent.com/Srelka/dsh-ascii-scenes/c5c4b6d85e9de68d6f7512a5ef8140108b80b238/assets/icon.svg",
+      "author": "Srelka",
+      "homepage": "https://github.com/Srelka/dsh-ascii-scenes#readme",
+      "repository": {
+        "url": "https://github.com/Srelka/dsh-ascii-scenes"
+      },
+      "metadata": {
+        "keywords": [
+          "dsh-plugin",
+          "deepseek-harness",
+          "dsh",
+          "theme",
+          "ascii",
+          "ambient"
+        ]
+      },
+      "versions": [
+        {
+          "publishTimestamp": 1793339339,
+          "version": "0.5.0",
+          "engines": {
+            "dsh": ">=0.2.1-rc.3 <0.3.0-0"
+          },
+          "source": {
+            "type": "git",
+            "url": "https://github.com/Srelka/dsh-ascii-scenes",
+            "commit": "c5c4b6d85e9de68d6f7512a5ef8140108b80b238"
+          }
+        }
+      ]
+    }
+  ]
+}
