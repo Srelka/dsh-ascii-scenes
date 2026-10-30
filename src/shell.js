@@ -75,3 +75,51 @@ function createSceneBackdrop(frame, scene, initialMotion) {
     },
   };
 }
+
+// Dissolve only the previous background. The host UI and the new scene remain
+// live throughout the change; no whole-page snapshot interrupts typing.
+function createSceneDissolve(backdrop, origin, onFinish) {
+  const {frame,canvas:source}=backdrop,box=frame.getBoundingClientRect();
+  const layer=document.createElement('div');layer.className='ascii-scene-layer ascii-transition';
+  layer.setAttribute('aria-hidden','true');
+  const canvas=document.createElement('canvas');canvas.width=source.width;canvas.height=source.height;
+  layer.append(canvas);
+  const ctx=canvas.getContext('2d');ctx.drawImage(source,0,0);
+  const w=Math.max(1,box.width),h=Math.max(1,box.height),cell=clamp(h/65,9,16),stepY=cell*1.18;
+  const x=clamp((origin?.x??box.left+w*.72)-box.left,0,w),y=clamp((origin?.y??box.top+h*.65)-box.top,0,h);
+  const reach=Math.max(Math.hypot(x,y),Math.hypot(w-x,y),Math.hypot(x,h-y),Math.hypot(w-x,h-y));
+  const tiles=[];
+  for(let row=0;row<h/stepY;row++)for(let col=0;col<w/cell;col++)tiles.push({
+    x:col*cell,y:row*stepY,alpha:0,
+    delay:Math.hypot((col+.5)*cell-x,(row+.5)*stepY-y)/reach*.54+noise(col*17+row*43)*.045,
+  });
+  ctx.setTransform(canvas.width/w,0,0,canvas.height/h,0,0);
+  ctx.globalCompositeOperation='destination-out';ctx.fillStyle='#000';
+  let raf=0,started=0,alive=true;
+  function tick(now) {
+    if(!alive)return;
+    const progress=(now-started)/820;
+    if(progress>=1){onFinish();return;}
+    for(const tile of tiles) {
+      if(tile.alpha===1)continue;
+      const p=clamp((progress-tile.delay)/.34,0,1),alpha=p*p*(3-2*p);
+      if(alpha<=tile.alpha)continue;
+      if(alpha===1)ctx.clearRect(tile.x,tile.y,cell,stepY);
+      else {
+        // Remove only the incremental coverage. This avoids redrawing a full
+        // screenshot and keeps the dissolving cells continuous between frames.
+        ctx.globalAlpha=(alpha-tile.alpha)/(1-tile.alpha);
+        ctx.fillRect(tile.x,tile.y,cell,stepY);
+      }
+      tile.alpha=alpha;
+    }
+    raf=requestAnimationFrame(tick);
+  }
+  const hidden=()=>{if(document.hidden)onFinish();};
+  // Establish the old palette before applySelection changes its CSS variables.
+  getComputedStyle(frame).color;
+  return {
+    start(){frame.append(layer);started=performance.now();raf=requestAnimationFrame(tick);document.addEventListener('visibilitychange',hidden);window.addEventListener('resize',onFinish);},
+    dispose(){if(!alive)return;alive=false;cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',hidden);window.removeEventListener('resize',onFinish);layer.remove();canvas.width=1;canvas.height=1;},
+  };
+}

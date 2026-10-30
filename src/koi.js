@@ -1,10 +1,52 @@
+function stepKoiSwimmer(spec,width,height,time,dt,pointer,clicks,reading) {
+  const m=spec.motion,length=Math.min(width*.48,height*spec.length*1.16);
+  let x=m.x*width,y=m.y*height,avoid=0;
+  const cosine=Math.cos(m.heading),sine=Math.sin(m.heading),radius=length*1.15;
+  function side(dx,dy){return cosine*dy-sine*dx>=0?-1:1;}
+  if(pointer?.strength) {
+    const dx=pointer.x-x,dy=pointer.y-y,distance=Math.hypot(dx,dy)||1;
+    const near=clamp(1-distance/radius,0,1),ahead=clamp((dx*cosine+dy*sine)/distance+.25,0,1);
+    if(near>0&&ahead>0&&!m.avoidSide)m.avoidSide=side(dx,dy);
+    avoid=m.avoidSide*near*near*ahead*.8*pointer.strength*(1-reading*.65);
+    if(distance>radius*1.35)m.avoidSide=0;
+  }else if(m.alert<.02)m.avoidSide=0;
+  for(const click of clicks) {
+    const dx=click.x-x,dy=click.y-y,near=clamp(1-Math.hypot(dx,dy)/radius,0,1);
+    if(near>0){if(!m.avoidSide)m.avoidSide=side(dx,dy);m.alert=Math.max(m.alert,near);}
+  }
+  m.avoid+=(avoid-m.avoid)*(1-Math.exp(-dt*2.5));m.alert*=Math.exp(-dt*1.2);
+  const wander=.35*(Math.sin(time*.09+spec.phase)-Math.sin(spec.phase))+
+    .16*(Math.sin(time*.041+spec.phase*1.7)-Math.sin(spec.phase*1.7));
+  const target=spec.heading+wander+m.avoid+m.avoidSide*m.alert*.35;
+  const difference=Math.atan2(Math.sin(target-m.heading),Math.cos(target-m.heading));
+  m.turn+=(clamp(difference*1.3,-.28,.28)-m.turn)*(1-Math.exp(-dt*4));
+  m.heading+=m.turn*dt;
+  const speed=Math.min(length*spec.pace,width*.018)*(.97+.03*Math.sin(m.stroke*2+spec.phase))*(1+m.alert*.16);
+  // Position follows the heading. Avoidance steers the fish instead of pushing
+  // its centre sideways or briefly reversing the velocity underneath its body.
+  x+=Math.cos(m.heading)*speed*dt;y+=Math.sin(m.heading)*speed*dt;
+  m.stroke+=(1.1+speed/length*6)*dt;
+  const c=Math.cos(m.heading),s=Math.sin(m.heading),margin=Math.max(4,length*.045);
+  const bounds={minX:(Math.min(-1.17*c,.62*c)-Math.abs(s)*.33)*length-margin,
+    maxX:(Math.max(-1.17*c,.62*c)+Math.abs(s)*.33)*length+margin,
+    minY:(Math.min(-1.17*s,.62*s)-Math.abs(c)*.33)*length-margin,
+    maxY:(Math.max(-1.17*s,.62*s)+Math.abs(c)*.33)*length+margin};
+  // The complete silhouette and wake leave first; entry starts beyond the
+  // opposite edge at the same heading. This works for diagonal routes as well.
+  if(c<0&&x+bounds.maxX< -1)x=width-bounds.minX+1;else if(c>0&&x+bounds.minX>width+1)x=-bounds.maxX-1;
+  if(s<0&&y+bounds.maxY< -1)y=height-bounds.minY+1;else if(s>0&&y+bounds.minY>height+1)y=-bounds.maxY-1;
+  m.x=x/width;m.y=y/height;
+  return {x,y,length,speed,angle:m.heading,beat:spec.phase+m.stroke,turn:m.turn,bounds};
+}
+
 function createKoiScene(canvas, options={}) {
   // Geometry and markings use fish coordinates; characters never flicker at random.
   const fish=[
-    {x:.86,y:.25,length:.24,angle:1.02,phase:.4,speed:.041,kind:'gold',depth:.94},
-    {x:.81,y:.62,length:.27,angle:-2.03,phase:3.2,speed:.035,kind:'ochre',depth:.64},
-    {x:.16,y:.72,length:.35,angle:.76,phase:5.3,speed:.031,kind:'white',depth:.96},
+    {x:.86,y:.25,length:.24,heading:-2.76,phase:.4,pace:.075,kind:'gold',depth:.94},
+    {x:.81,y:.62,length:.27,heading:.74,phase:3.2,pace:.065,kind:'ochre',depth:.64},
+    {x:.16,y:.72,length:.35,heading:-.52,phase:5.3,pace:.06,kind:'white',depth:.96},
   ];
+  for(const spec of fish)spec.motion={x:spec.x,y:spec.y,heading:spec.heading,turn:0,stroke:0,avoid:0,avoidSide:0,alert:0};
   const leaves=[
     {x:.93,y:.13,r:.062,angle:1.6,seed:13},
     {x:.91,y:.52,r:.044,angle:2.3,seed:31},
@@ -26,17 +68,18 @@ function createKoiScene(canvas, options={}) {
   let waterGrid=null,waterWidth=0,waterHeight=0,waterCell=0,waterTime=0;
   const handledClicks=new WeakSet();
   return createAmbientScene(canvas,options,(ctx,view)=>{
-    const {width:w,height:h,time:t,quiet,preview,clicks}=view;
+    const {width:w,height:h,time:t,reading,preview,clicks,pointer}=view;
     const scale=Math.min(w/1280,h/820);
     const cell=preview?Math.max(1.25,Math.min(w/119,h/76)):clamp(10*scale,5,14);
     const stepY=cell*1.12;
     if(!waterGrid||waterWidth!==w||waterHeight!==h||waterCell!==cell){
       waterGrid=createKoiWaterGrid(w,h,cell);waterWidth=w;waterHeight=h;waterCell=cell;waterTime=t;
     }
-    waterGrid.step(Math.max(0,t-waterTime));waterTime=t;
+    const dt=clamp(t-waterTime,0,.05),freshClicks=[];
+    waterGrid.step(dt);waterTime=t;
     // Shared clicks remain in the view for 1.6 seconds; each press is applied once.
     for(const click of clicks)if(!handledClicks.has(click)){
-      handledClicks.add(click);waterGrid.impact(click.x,click.y);
+      handledClicks.add(click);waterGrid.impact(click.x,click.y);freshClicks.push(click);
     }
     const water=ctx.createLinearGradient(0,0,w,0);
     for(const [at,color] of [[0,'#429d8b'],[.12,'#58b3a0'],[.32,'#204f48'],[.70,'#1c4942'],[.91,'#318b79'],[1,'#3f9c86']])water.addColorStop(at,color);
@@ -67,18 +110,12 @@ function createKoiScene(canvas, options={}) {
 
     function koi(spec) {
       const {phase,kind}=spec;
-      // A slow closed route has no wrap jump, and points in the direction of travel.
-      const a=spec.angle+t*spec.speed;
-      const length=Math.min(w*.48,h*spec.length*1.16);
-      const rx=w*(kind==='white'?.055:.045),ry=h*.105;
-      const x=w*spec.x+rx*(Math.sin(a)-Math.sin(spec.angle));
-      const y=h*spec.y-ry*(Math.cos(a)-Math.cos(spec.angle));
-      const angle=Math.atan2(ry*Math.sin(a),rx*Math.cos(a));
+      const {x,y,length,angle,beat,turn,bounds}=stepKoiSwimmer(spec,w,h,t,dt,pointer,freshClicks,reading);
+      if(x+bounds.maxX<0||x+bounds.minX>w||y+bounds.maxY<0||y+bounds.minY>h)return;
       const cos=Math.cos(angle),sin=Math.sin(angle);
-      const beat=t*(kind==='white'?1.62:1.83)+phase;
       const bend=u=>{
         const tail=clamp((.48-u)/1.05,0,1.34);
-        return Math.sin(beat-tail*3.2)*tail*tail*.073;
+        return (Math.sin(beat-tail*3.2)*.055+turn*.08)*tail*tail;
       };
       const bodyWidth=u=>{
         const s=(u+.57)/1.13;
@@ -86,28 +123,36 @@ function createKoiScene(canvas, options={}) {
       };
       const fins=[-1,1].map(side=>{
         const sweep=Math.sin(beat+.6+side*.45);
-        return {cx:.095-sweep*.018,cy:side*(.158+sweep*.025),angle:side*(.62+sweep*.18)};
+        const angle=side*(.62+sweep*.18);
+        return {cx:.095-sweep*.018,cy:side*(.158+sweep*.025),cos:Math.cos(angle),sin:Math.sin(angle)};
       });
+      const feather=cell/length*.52;
       function part(u,v) {
         const b=v-bend(u),radius=bodyWidth(u);
-        if(radius&&Math.abs(b)<radius)return {type:'body',b,radius};
+        let best=null;
+        function include(type,b,distance,radius=0) {
+          const p=clamp(.5+distance/(feather*2),0,1),coverage=p*p*(3-2*p);
+          if(coverage>(best?.coverage||0))best={type,b,radius,coverage};
+        }
+        if(radius)include('body',b,radius-Math.abs(b),radius);
+        if(best?.coverage===1)return best;
         // The tail grows from a narrow peduncle into two flexible lobes.
         const q=(-u-.47)/.36;
         if(q>0&&q<1) {
           const mid=bend(-.47)+(bend(-.83)-bend(-.47))*q;
           const distance=Math.abs(v-mid),fan=.024+q*.17;
-          if(distance<fan&&!(q>.70&&distance<(q-.70)*.30))return {type:'tail',b:v-mid};
+          include('tail',v-mid,Math.min(fan-distance,q*.36,(1-q)*.36,q>.70?distance-(q-.70)*.30:1));
         }
         for(const fin of fins) {
-          const fx=u-fin.cx,fy=v-bend(fin.cx)-fin.cy,c=Math.cos(fin.angle),s=Math.sin(fin.angle);
+          const fx=u-fin.cx,fy=v-bend(fin.cx)-fin.cy,c=fin.cos,s=fin.sin;
           const along=fx*c+fy*s,across=-fx*s+fy*c;
-          if((along/.14)**2+(across/.056)**2<1)return {type:'fin',b:across};
+          include('fin',across,(1-(along/.14)**2-(across/.056)**2)*.028);
         }
         for(const side of [-1,1]) {
           const fx=u+.30,fy=b-side*.085;
-          if((fx/.092)**2+(fy/.042)**2<1)return {type:'fin',b:fy};
+          include('fin',fy,(1-(fx/.092)**2-(fy/.042)**2)*.021);
         }
-        return null;
+        return best;
       }
       const palettes={
         white:{base:'#dddcc1',light:'#f0ecd6',edge:'#adbea3',red:'#ba6850',redLight:'#d78262',fin:'#b9cbb1',ink:'#3d6654'},
@@ -142,15 +187,16 @@ function createKoiScene(canvas, options={}) {
           color=Math.abs(p.b)>.07?palette.light:palette.fin;
           alpha=.70;char=n>.5?'/':':';
         } else char=n>.5?'/':'·';
-        tiles.push({px,py,color,char,alpha});
+        tiles.push({px,py,color,char,alpha:alpha*p.coverage,coverage:p.coverage});
       }
       ctx.globalAlpha=spec.depth*.16;ctx.fillStyle='#123f37';
-      for(const tile of tiles)ctx.fillRect(tile.px-cell*.25+5*scale,tile.py-stepY*.2+10*scale,cell,stepY);
+      for(const tile of tiles){ctx.globalAlpha=spec.depth*.13*tile.coverage;ctx.fillRect(tile.px-cell*.25+5*scale,tile.py-stepY*.2+10*scale,cell,stepY);}
       ctx.font=`${cell*.92}px Consolas,monospace`;
       for(const tile of tiles) {
         ctx.globalAlpha=spec.depth*tile.alpha;ctx.fillStyle=tile.color;
-        ctx.fillRect(tile.px-cell*.5,tile.py-stepY*.5,cell*.90,stepY*.90);
-        ctx.globalAlpha=spec.depth*tile.alpha*.80;ctx.fillStyle=palette.ink;
+        const size=.65+.35*tile.coverage;
+        ctx.fillRect(tile.px-cell*.45*size,tile.py-stepY*.45*size,cell*.90*size,stepY*.90*size);
+        ctx.globalAlpha=spec.depth*tile.alpha*.72*tile.coverage;ctx.fillStyle=palette.ink;
         ctx.fillText(tile.char,tile.px,tile.py);
       }
       ctx.globalAlpha=1;
@@ -212,12 +258,12 @@ function createKoiScene(canvas, options={}) {
       petal(x+26*size,y+12*size,2.3*size,2.40+angle,.83*.79);
     }
     // Reading mode dims the whole scene gently, with more shelter behind the text.
-    if(quiet){ctx.fillStyle='rgba(13,47,40,.27)';ctx.fillRect(0,0,w,h);}
-    const veil=ctx.createLinearGradient(0,0,w,0),alpha=quiet?.53:.07;
+    if(reading){ctx.fillStyle=`rgba(13,47,40,${reading*.27})`;ctx.fillRect(0,0,w,h);}
+    const veil=ctx.createLinearGradient(0,0,w,0),alpha=.07+reading*.46;
     veil.addColorStop(0,'rgba(15,48,41,0)');veil.addColorStop(.29,`rgba(15,48,41,${alpha})`);
     veil.addColorStop(.73,`rgba(15,48,41,${alpha})`);veil.addColorStop(1,'rgba(15,48,41,0)');
     ctx.fillStyle=veil;ctx.fillRect(0,0,w,h);
-  });
+  },{pointerMotion:true,maxPixels:3000000});
 }
 
 function createKoiWaterGrid(width,height,cell) {

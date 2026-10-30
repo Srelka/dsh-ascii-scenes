@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 
-const suites = ['plugin-browser', 'hidden-preview', 'scene-browser', 'interaction-browser', 'ambient-browser', 'switch-stress'];
+const suites = ['plugin-browser', 'hidden-preview', 'scene-browser', 'interaction-browser', 'ambient-browser', 'motion-samples-browser', 'koi-swim-browser', 'switch-stress'];
 for (const suite of suites) {
   console.log(`\nRunning ${suite}`);
   const result = spawnSync(process.execPath, [`tests/${suite}.mjs`], { stdio: 'inherit', env: process.env });

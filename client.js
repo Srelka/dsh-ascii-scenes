@@ -3,7 +3,7 @@ window.__ModuleLoader__.load({
   id: "dsh-ascii-scenes",
   factory(require) {
 const React = require("react");
-const STYLES = ".ascii-scene-layer{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;border-radius:inherit;contain:strict}\n.ascii-scene-layer canvas{width:100%;height:100%;display:block}\nbody[data-ascii-scene] [data-ascii-shell]{background:transparent!important;isolation:isolate}\nbody[data-ascii-scene] [data-ascii-shell]:before{background:color-mix(in srgb,var(--dsw-specific-sidebar-fill) 72%,transparent)!important;z-index:1}\n.ascii-shell-scene{border-radius:0;z-index:0}\nbody[data-ascii-scene] [data-ascii-center],body[data-ascii-scene] [data-ascii-sidebar]{position:relative;z-index:1}\nbody[data-ascii-scene] [data-ascii-center],body[data-ascii-scene] [data-ascii-content-surface],body[data-ascii-scene] [data-conversation-scroll],body[data-ascii-scene] [data-ascii-sidebar-content]{background:transparent!important}\nbody[data-ascii-scene] [data-ascii-sidebar]{background:color-mix(in srgb,var(--dsw-specific-sidebar-fill) 72%,transparent)!important}\nbody[data-ascii-scene=\"cloud-drift\"] [data-ascii-sidebar]{background:color-mix(in srgb,var(--dsw-specific-sidebar-fill) 50%,transparent)!important}\nbody[data-ascii-scene] [data-conversation-content]>[data-conversation-scroll]{position:relative;z-index:1}\nbody[data-ascii-scene] [data-composer-seat]{background:none!important}\nbody[data-ascii-scene] [data-content-phase=\"hero\"] button:not([data-composer-card] button):not(.ascii-clawd-hit){background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 90%,transparent);border-radius:6px;box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-bg-layer-1) 90%,transparent)}\nbody[data-ascii-scene=\"claude-night\"] [data-composer-card]{background:rgba(25,21,17,.94)!important;border:1px solid #554235!important;box-shadow:0 4px 30px #08060438,inset 0 1px 0 #f4bd8a09!important}\nbody[data-ascii-scene=\"claude-night\"] [data-composer-card]:focus-within{border-color:#957056!important;box-shadow:0 0 0 1px #d9997020,0 8px 32px #09070438!important}\nbody[data-ascii-scene=\"claude-night\"] .uc-composer-glow{opacity:.16;filter:sepia(.8)}\nbody[data-ascii-scene=\"claude-night\"] .uc-slot{--uc-bg:#25201b;--uc-blue:#dc9576}\nbody[data-ascii-scene=\"claude-night\"] .uc-panel{background:#25201bf5!important}\n.ascii-clawd-stage{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden;contain:layout style}\n.ascii-clawd{position:absolute;left:0;top:0;width:108px;height:70px;pointer-events:none;image-rendering:pixelated}\n.ascii-clawd-hit{position:absolute;left:0;top:0;padding:0;border:0;background:none!important;box-shadow:none!important;pointer-events:auto;cursor:pointer;border-radius:6px;user-select:none;-webkit-user-select:none}\n.ascii-clawd-hit:focus-visible{outline:1px dashed #e2ab83;outline-offset:4px}\n.ascii-clawd-hit[hidden]{display:none}\n.ascii-footer{box-sizing:border-box;flex:1;min-width:0;width:100%;padding-top:8px}\n.ascii-switch{box-sizing:border-box;display:flex;align-items:center;gap:8px;width:calc(100% + 4px);height:42px;margin:0 -2px 4px;text-align:left;color:var(--dsw-alias-label-primary);background:transparent;border:0;font:inherit;cursor:pointer;border-radius:var(--dsw-radius-md,8px);padding:0 10px;font-size:14px;line-height:22px;white-space:nowrap}\n.ascii-switch:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}\n.ascii-switch svg{width:18px;height:18px;flex:none}\n.ascii-switch:focus-visible,.ascii-picker button:focus-visible{outline:2px solid #dfa081;outline-offset:3px}\n.ascii-settings{padding:18px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}\n.ascii-settings-title{font-size:14px;color:var(--dsw-alias-label-primary);margin-bottom:14px}\n.ascii-themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}\n.ascii-theme-card{color:var(--dsw-alias-label-primary);background:transparent;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:5px;text-align:left;cursor:pointer;min-width:0;overflow:hidden}\n.ascii-theme-card[aria-pressed=true]{border-color:#d99a78;box-shadow:0 0 0 1px #d99a7844}\n.ascii-thumb{height:112px;border-radius:8px;position:relative;overflow:hidden;pointer-events:none;background:var(--dsw-alias-bg-base)}\n.ascii-thumb canvas{width:100%;height:100%;display:block}\n.ascii-thumb-native{background:linear-gradient(125deg,#fafafa 0 50%,#19191b 50%)}\n.ascii-thumb-native:before{content:\"\";position:absolute;left:24%;right:24%;top:35%;height:30%;border:1px solid #8885;border-radius:8px;background:#8882}\n.ascii-theme-name{display:flex;align-items:center;justify-content:space-between;padding:10px 8px 7px;font-size:13px}\n.ascii-theme-check{font-size:13px;color:#dfaa8b}\n.ascii-motion{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:16px;color:var(--dsw-alias-label-secondary);font-size:13px}\n.ascii-motion button{width:36px;height:21px;flex:none;border:0;border-radius:20px;background:#776d6355;padding:3px;cursor:pointer;transition:background .15s}\n.ascii-motion button[aria-checked=true]{background:#bf8264}\n.ascii-motion button:before{content:\"\";display:block;width:15px;height:15px;border-radius:50%;background:#fff2de;transform:translateX(0);transition:transform .15s}\n.ascii-motion button[aria-checked=true]:before{transform:translateX(15px)}\n.ascii-dialog{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:18px;padding:22px;width:min(660px,calc(100vw - 48px));max-height:calc(100vh - 72px);box-sizing:border-box;box-shadow:0 24px 100px #0005;overflow-y:auto;overscroll-behavior:contain}\n.ascii-dialog::backdrop{background:#0007}\n.ascii-dialog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;font-size:15px}\n.ascii-dialog-close{border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;width:28px;height:28px;border-radius:6px;font-size:21px;line-height:1}\n.ascii-dialog-close:hover{background:var(--dsw-alias-interactive-bg-hover)}\nhtml[data-ascii-transition]::view-transition-old(root),html[data-ascii-transition]::view-transition-new(root){animation:none;mix-blend-mode:normal}\nhtml[data-ascii-transition]::view-transition-old(root){z-index:1}\nhtml[data-ascii-transition]::view-transition-new(root){z-index:2}\n@media(prefers-reduced-motion:reduce){.ascii-motion button,.ascii-motion button:before{transition:none}}\n\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) [data-composer-card]{background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 96%,transparent)!important;border:1px solid var(--dsw-alias-border-l2)!important;box-shadow:0 6px 24px #10324818,inset 0 1px 0 #ffffff30!important}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) [data-composer-card]:focus-within{border-color:var(--dsw-alias-brand-primary)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-brand-primary) 25%,transparent),0 8px 30px #10324818!important}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .uc-composer-glow{opacity:.12}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .uc-slot{--uc-bg:var(--dsw-alias-bg-layer-1);--uc-blue:var(--dsw-alias-brand-primary)}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .uc-panel{background:var(--dsw-alias-bg-layer-1)!important}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .ascii-theme-card[aria-pressed=true]{border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent)}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .ascii-theme-check{color:var(--dsw-alias-brand-text)}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .ascii-motion button[aria-checked=true]{background:var(--dsw-alias-brand-primary)}\n\n\n";
+const STYLES = ".ascii-scene-layer{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;border-radius:inherit;contain:strict}\n.ascii-scene-layer canvas{width:100%;height:100%;display:block}\nbody[data-ascii-scene] [data-ascii-shell]{background:transparent!important;isolation:isolate}\nbody[data-ascii-scene] [data-ascii-shell]:before{background:color-mix(in srgb,var(--dsw-specific-sidebar-fill) 72%,transparent)!important;z-index:1}\n.ascii-shell-scene{border-radius:0;z-index:0}\n.ascii-transition{border-radius:0;z-index:0}\nhtml[data-ascii-transition=\"dissolve\"] body,html[data-ascii-transition=\"dissolve\"] [data-ascii-sidebar],html[data-ascii-transition=\"dissolve\"] [data-composer-card],html[data-ascii-transition=\"dissolve\"] .ascii-dialog{transition:color .5s ease,background-color .5s ease,border-color .5s ease}\nbody[data-ascii-scene] [data-ascii-center],body[data-ascii-scene] [data-ascii-sidebar]{position:relative;z-index:1}\nbody[data-ascii-scene] [data-ascii-center],body[data-ascii-scene] [data-ascii-content-surface],body[data-ascii-scene] [data-conversation-scroll],body[data-ascii-scene] [data-ascii-sidebar-content]{background:transparent!important}\nbody[data-ascii-scene] [data-ascii-sidebar]{background:color-mix(in srgb,var(--dsw-specific-sidebar-fill) 72%,transparent)!important}\nbody[data-ascii-scene=\"cloud-drift\"] [data-ascii-sidebar]{background:color-mix(in srgb,var(--dsw-specific-sidebar-fill) 50%,transparent)!important}\nbody[data-ascii-scene] [data-conversation-content]>[data-conversation-scroll]{position:relative;z-index:1}\nbody[data-ascii-scene] [data-composer-seat]{background:none!important}\nbody[data-ascii-scene] [data-content-phase=\"hero\"] button:not([data-composer-card] button):not(.ascii-clawd-hit){background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 90%,transparent);border-radius:6px;box-shadow:0 0 0 3px color-mix(in srgb,var(--dsw-alias-bg-layer-1) 90%,transparent)}\nbody[data-ascii-scene=\"claude-night\"] [data-composer-card]{background:rgba(25,21,17,.94)!important;border:1px solid #554235!important;box-shadow:0 4px 30px #08060438,inset 0 1px 0 #f4bd8a09!important}\nbody[data-ascii-scene=\"claude-night\"] [data-composer-card]:focus-within{border-color:#957056!important;box-shadow:0 0 0 1px #d9997020,0 8px 32px #09070438!important}\nbody[data-ascii-scene=\"claude-night\"] .uc-composer-glow{opacity:.16;filter:sepia(.8)}\nbody[data-ascii-scene=\"claude-night\"] .uc-slot{--uc-bg:#25201b;--uc-blue:#dc9576}\nbody[data-ascii-scene=\"claude-night\"] .uc-panel{background:#25201bf5!important}\n.ascii-clawd-stage{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden;contain:layout style}\n.ascii-clawd{position:absolute;left:0;top:0;width:108px;height:70px;pointer-events:none;image-rendering:pixelated}\n.ascii-clawd-hit{position:absolute;left:0;top:0;padding:0;border:0;background:none!important;box-shadow:none!important;pointer-events:auto;cursor:pointer;border-radius:6px;user-select:none;-webkit-user-select:none}\n.ascii-clawd-hit:focus-visible{outline:1px dashed #e2ab83;outline-offset:4px}\n.ascii-clawd-hit[hidden]{display:none}\n.ascii-footer{box-sizing:border-box;flex:1;min-width:0;width:100%;padding-top:8px}\n.ascii-switch{box-sizing:border-box;display:flex;align-items:center;gap:8px;width:calc(100% + 4px);height:42px;margin:0 -2px 4px;text-align:left;color:var(--dsw-alias-label-primary);background:transparent;border:0;font:inherit;cursor:pointer;border-radius:var(--dsw-radius-md,8px);padding:0 10px;font-size:14px;line-height:22px;white-space:nowrap}\n.ascii-switch:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}\n.ascii-switch svg{width:18px;height:18px;flex:none}\n.ascii-switch:focus-visible,.ascii-picker button:focus-visible{outline:2px solid #dfa081;outline-offset:3px}\n.ascii-settings{padding:18px 0;border-bottom:1px solid var(--dsw-alias-border-l2)}\n.ascii-settings-title{font-size:14px;color:var(--dsw-alias-label-primary);margin-bottom:14px}\n.ascii-themes{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px}\n.ascii-theme-card{color:var(--dsw-alias-label-primary);background:transparent;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:5px;text-align:left;cursor:pointer;min-width:0;overflow:hidden}\n.ascii-theme-card[aria-pressed=true]{border-color:#d99a78;box-shadow:0 0 0 1px #d99a7844}\n.ascii-thumb{height:112px;border-radius:8px;position:relative;overflow:hidden;pointer-events:none;background:var(--dsw-alias-bg-base)}\n.ascii-thumb canvas{width:100%;height:100%;display:block}\n.ascii-thumb-native{background:linear-gradient(125deg,#fafafa 0 50%,#19191b 50%)}\n.ascii-thumb-native:before{content:\"\";position:absolute;left:24%;right:24%;top:35%;height:30%;border:1px solid #8885;border-radius:8px;background:#8882}\n.ascii-theme-name{display:flex;align-items:center;justify-content:space-between;padding:10px 8px 7px;font-size:13px}\n.ascii-theme-check{font-size:13px;color:#dfaa8b}\n.ascii-motion{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:16px;color:var(--dsw-alias-label-secondary);font-size:13px}\n.ascii-motion button{width:36px;height:21px;flex:none;border:0;border-radius:20px;background:#776d6355;padding:3px;cursor:pointer;transition:background .15s}\n.ascii-motion button[aria-checked=true]{background:#bf8264}\n.ascii-motion button:before{content:\"\";display:block;width:15px;height:15px;border-radius:50%;background:#fff2de;transform:translateX(0);transition:transform .15s}\n.ascii-motion button[aria-checked=true]:before{transform:translateX(15px)}\n.ascii-dialog{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:18px;padding:22px;width:min(660px,calc(100vw - 48px));max-height:calc(100vh - 72px);box-sizing:border-box;box-shadow:0 24px 100px #0005;overflow-y:auto;overscroll-behavior:contain}\n.ascii-dialog::backdrop{background:#0007}\n.ascii-dialog-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;font-size:15px}\n.ascii-dialog-close{border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;cursor:pointer;width:28px;height:28px;border-radius:6px;font-size:21px;line-height:1}\n.ascii-dialog-close:hover{background:var(--dsw-alias-interactive-bg-hover)}\nhtml[data-ascii-transition]::view-transition-old(root),html[data-ascii-transition]::view-transition-new(root){animation:none;mix-blend-mode:normal}\nhtml[data-ascii-transition]::view-transition-old(root){z-index:1}\nhtml[data-ascii-transition]::view-transition-new(root){z-index:2}\n@media(prefers-reduced-motion:reduce){.ascii-motion button,.ascii-motion button:before{transition:none}}\n\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) [data-composer-card]{background:color-mix(in srgb,var(--dsw-alias-bg-layer-1) 96%,transparent)!important;border:1px solid var(--dsw-alias-border-l2)!important;box-shadow:0 6px 24px #10324818,inset 0 1px 0 #ffffff30!important}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) [data-composer-card]:focus-within{border-color:var(--dsw-alias-brand-primary)!important;box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-brand-primary) 25%,transparent),0 8px 30px #10324818!important}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .uc-composer-glow{opacity:.12}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .uc-slot{--uc-bg:var(--dsw-alias-bg-layer-1);--uc-blue:var(--dsw-alias-brand-primary)}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .uc-panel{background:var(--dsw-alias-bg-layer-1)!important}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .ascii-theme-card[aria-pressed=true]{border-color:var(--dsw-alias-brand-primary);box-shadow:0 0 0 1px color-mix(in srgb,var(--dsw-alias-brand-primary) 30%,transparent)}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .ascii-theme-check{color:var(--dsw-alias-brand-text)}\nbody[data-ascii-scene]:not([data-ascii-scene=\"claude-night\"]) .ascii-motion button[aria-checked=true]{background:var(--dsw-alias-brand-primary)}\n\n\n";
 const SCENE_ID = "claude-night";
 const SCENE_IDS = [SCENE_ID, "cloud-drift", "honu-lagoon", "koi-pond", "jellyfish", "paper-boats", "fireflies", "moonlit"];
 const STORAGE_KEY = "dsh-ascii-scenes:v1";
@@ -152,11 +152,43 @@ function listenForBackgroundClicks(root, onClick) {
   };
 }
 
+// Only empty background space responds. Hovering text, dragging, or leaving the
+// window releases the field without taking focus or capturing pointer input.
+function createScenePointer(canvas, root) {
+  let target = null;
+  const pointer = {x:0,y:0,strength:0};
+  function clear() { target = null; }
+  function move(event) {
+    if (event.pointerType === 'touch' || event.buttons || !isAsciiBackgroundTarget(event.target) || !getSelection()?.isCollapsed) { clear(); return; }
+    const box = canvas.getBoundingClientRect();
+    target = {x:event.clientX-box.left,y:event.clientY-box.top};
+    if (pointer.strength < .001) { pointer.x=target.x; pointer.y=target.y; }
+  }
+  root?.addEventListener('pointermove',move,{passive:true});
+  root?.addEventListener('pointerleave',clear,{passive:true});
+  root?.addEventListener('pointerdown',clear,{passive:true});
+  window.addEventListener('blur',clear);
+  return {
+    pointer,
+    step(dt, enabled) {
+      if (!enabled) { clear(); pointer.strength=0; return; }
+      const blend=1-Math.exp(-dt*5);
+      pointer.strength+=((target?1:0)-pointer.strength)*blend;
+      if(target){pointer.x+=(target.x-pointer.x)*blend;pointer.y+=(target.y-pointer.y)*blend;}
+    },
+    dispose() {
+      root?.removeEventListener('pointermove',move);root?.removeEventListener('pointerleave',clear);
+      root?.removeEventListener('pointerdown',clear);window.removeEventListener('blur',clear);
+    },
+  };
+}
+
 function createNightScene(canvas, { motion = true, quiet = false, preview = false, interactionRoot = null, getContentBounds = null } = {}) {
   const ctx = canvas.getContext("2d", { alpha: false });
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let w = 1, h = 1, dpr = 1, time = 0, last = 0, raf = 0, alive = true, visible = true;
-  let moving = motion, calm = quiet, grid = null;
+  let moving = motion, reading = quiet, calm = quiet ? 1 : 0, grid = null;
+  const hover = createScenePointer(canvas, interactionRoot);
   let worldWidth = 1, worldHeight = 1, originX = 0, originY = 0, resizeFrame = 0;
   const bursts=[];
   const stats = { frames: 0, drawMs: 0, longestDrawMs: 0, lastFrameMs: 0 };
@@ -217,9 +249,9 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
     const sw = 30 * cell;
     const cx = w - sw * .5 - (preview ? w * .025 : clamp(w * .025, 18, 52));
     const cy = preview ? h * .46 : sw * .5 + clamp(h * .025, 12, 32);
-    const alpha = calm ? .7 : .98;
+    const alpha = .98 - calm*.28;
     const halo = ctx.createRadialGradient(cx + cell * 2, cy, 4, cx + cell * 2, cy, sw * .74);
-    halo.addColorStop(0, `rgba(210,110,74,${calm ? .055 : .12})`); halo.addColorStop(1, "rgba(197,100,68,0)");
+    halo.addColorStop(0, `rgba(210,110,74,${.12-calm*.065})`); halo.addColorStop(1, "rgba(197,100,68,0)");
     ctx.fillStyle = halo; ctx.fillRect(cx - sw, cy - sw, sw * 2, sw * 2);
     const cellHeight = cell * STAR_CELL_ASPECT;
     ctx.font = `${Math.max(5, cell * 1.04)}px Consolas, 'Courier New', monospace`;
@@ -251,10 +283,14 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (let i = 0; i < dust.length; i++) {
       const p = dust[i];
-      const x = ((p.x * worldWidth + Math.sin(time * .35 + p.phase) * 24 + time * (p.depth - .4) * 11) % worldWidth + worldWidth) % worldWidth;
-      const y = ((p.y * worldHeight - time * (7 + p.depth * 15)) % worldHeight + worldHeight) % worldHeight;
+      let x = ((p.x * worldWidth + Math.sin(time * .35 + p.phase) * 24 + time * (p.depth - .4) * 11) % worldWidth + worldWidth) % worldWidth;
+      let y = ((p.y * worldHeight - time * (7 + p.depth * 15)) % worldHeight + worldHeight) % worldHeight;
+      const dx=x-hover.pointer.x,dy=y-hover.pointer.y,distance=Math.hypot(dx,dy);
+      const touch=Math.max(0,1-distance/150)**2*hover.pointer.strength*(1-calm*.7);
+      x+=dx*touch*.1*p.depth;y+=dy*touch*.1*p.depth;
       const safe = .25 + .75 * Math.pow(Math.abs(x / worldWidth - .47) * 1.8, .7);
-      const alpha = (.18 + p.depth * .19) * safe * (.65 + .35 * Math.sin(time * .8 + p.phase) ** 2) * (calm ? .75 : 1);
+      const border=clamp(Math.min(x,y,worldWidth-x,worldHeight-y)/28,0,1);
+      const alpha = ((.18 + p.depth * .19) * safe + touch*.16) * (.65 + .35 * Math.sin(time * .8 + p.phase) ** 2) * (1-calm*.25)*border;
       ctx.font = `${preview ? 6 : 9 + p.depth * 4}px Consolas, monospace`;
       ctx.fillStyle = i % 7 === 0 ? `rgba(225,135,104,${alpha})` : `rgba(194,173,152,${alpha * .7})`;
       ctx.fillText(p.glyph, x, y);
@@ -287,8 +323,8 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
     if (calm) {
       ctx.save(); ctx.translate(originX, originY);
       const veil = ctx.createLinearGradient(0, 0, w, 0);
-      veil.addColorStop(0, "rgba(20,18,15,0)"); veil.addColorStop(.2, "rgba(20,18,15,.68)");
-      veil.addColorStop(.7, "rgba(20,18,15,.68)"); veil.addColorStop(1, "rgba(20,18,15,.1)");
+      veil.addColorStop(0, "rgba(20,18,15,0)"); veil.addColorStop(.2, `rgba(20,18,15,${calm*.68})`);
+      veil.addColorStop(.7, `rgba(20,18,15,${calm*.68})`); veil.addColorStop(1, `rgba(20,18,15,${calm*.1})`);
       ctx.fillStyle = veil; ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
@@ -301,12 +337,13 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
     raf = 0;
     if (!alive || !moving || reduced.matches || document.hidden || !visible) return;
     const dt = last ? Math.min((now - last) / 1000, .05) : 0; last = now;
-    time += dt; stats.lastFrameMs = dt * 1000; draw(); raf = requestAnimationFrame(tick);
+    time += dt; calm+=((reading?1:0)-calm)*(1-Math.exp(-dt*3.6));
+    hover.step(dt,true);stats.lastFrameMs = dt * 1000; draw(); raf = requestAnimationFrame(tick);
   }
   function schedule() {
     cancelAnimationFrame(raf); raf = 0; last = 0;
     if (alive && moving && !reduced.matches && !document.hidden && visible) raf = requestAnimationFrame(tick);
-    else draw();
+    else { calm=reading?1:0;hover.step(0,false);draw(); }
   }
   const resizeObserver = new ResizeObserver(() => {
     if (!resizeFrame) resizeFrame = requestAnimationFrame(() => { resizeFrame = 0; resize(); });
@@ -323,8 +360,8 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
   return {
     stats,
     layout: resize,
-    update(options) { moving = options.motion; calm = options.quiet; if(!moving)bursts.length=0; draw(); schedule(); },
-    dispose() { alive = false; cancelAnimationFrame(raf); cancelAnimationFrame(resizeFrame); resizeObserver.disconnect(); intersection.disconnect(); document.removeEventListener("visibilitychange", schedule); reduced.removeEventListener("change", schedule); stopClicks(); bursts.length=0; if(grid){grid.width=1;grid.height=1;} grid = null; canvas.width=1;canvas.height=1; },
+    update(options) { moving = options.motion; reading = options.quiet; if(!moving)bursts.length=0; draw(); schedule(); },
+    dispose() { alive = false; cancelAnimationFrame(raf); cancelAnimationFrame(resizeFrame); resizeObserver.disconnect(); intersection.disconnect(); document.removeEventListener("visibilitychange", schedule); reduced.removeEventListener("change", schedule); stopClicks(); hover.dispose();bursts.length=0; if(grid){grid.width=1;grid.height=1;} grid = null; canvas.width=1;canvas.height=1; },
   };
 }
 
@@ -548,18 +585,20 @@ function createClawd(stage, card, motion) {
 }
 
 // Shared lifecycle for the new scenes. Claude keeps its original renderer.
-function createAmbientScene(canvas, options, render) {
+function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPixels=Infinity}={}) {
   const ctx = canvas.getContext('2d', {alpha:false});
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let width=1, height=1, ratio=1, time=0, last=0, frame=0, resizeFrame=0;
   let alive=true, visible=true, moving=options.motion!==false, quiet=!!options.quiet;
+  let reading=quiet?1:0;
+  const hover=pointerMotion?createScenePointer(canvas,options.interactionRoot):null;
   const clicks=[], stats={frames:0,drawMs:0,longestDrawMs:0};
   function draw() {
     if(!alive)return;
     const started=performance.now();
     ctx.setTransform(ratio,0,0,ratio,0,0);
     while(clicks.length && time-clicks[0].at>1.6)clicks.shift();
-    render(ctx,{width,height,time,quiet,preview:!!options.preview,clicks});
+    render(ctx,{width,height,time,quiet,reading,pointer:hover?.pointer,preview:!!options.preview,clicks});
     const elapsed=performance.now()-started;
     stats.drawMs=stats.drawMs*.95+elapsed*.05;
     stats.longestDrawMs=Math.max(stats.longestDrawMs,elapsed);stats.frames++;
@@ -567,17 +606,22 @@ function createAmbientScene(canvas, options, render) {
   function tick(now) {
     frame=0;
     if(!alive||!moving||reduced.matches||document.hidden||!visible)return;
-    time+=last?Math.min((now-last)/1000,.05):0;last=now;
+    const dt=last?Math.min((now-last)/1000,.05):0;last=now;time+=dt;
+    reading+=((quiet?1:0)-reading)*(1-Math.exp(-dt*3.6));hover?.step(dt,true);
     draw();frame=requestAnimationFrame(tick);
   }
   function schedule() {
-    cancelAnimationFrame(frame);frame=0;last=0;draw();
-    if(alive&&moving&&!reduced.matches&&!document.hidden&&visible)frame=requestAnimationFrame(tick);
+    cancelAnimationFrame(frame);frame=0;last=0;
+    const running=alive&&moving&&!reduced.matches&&!document.hidden&&visible;
+    if(!running){reading=quiet?1:0;hover?.step(0,false);}
+    draw();if(running)frame=requestAnimationFrame(tick);
   }
   function resize() {
     if(!alive)return;
     const box=canvas.getBoundingClientRect();width=Math.max(1,box.width);height=Math.max(1,box.height);
-    ratio=Math.min(devicePixelRatio||1,2);
+    // Dense water scenes cap decorative raster work on high-DPI displays. CSS
+    // geometry and all host text stay at their native size and resolution.
+    ratio=Math.min(devicePixelRatio||1,2,Math.max(1,Math.sqrt(maxPixels/(width*height))));
     const pixelWidth=Math.round(width*ratio),pixelHeight=Math.round(height*ratio);
     if(canvas.width!==pixelWidth||canvas.height!==pixelHeight){canvas.width=pixelWidth;canvas.height=pixelHeight;}
     draw();
@@ -599,7 +643,7 @@ function createAmbientScene(canvas, options, render) {
     update(value){moving=value.motion;quiet=value.quiet;if(!moving)clicks.length=0;schedule();},
     dispose(){alive=false;cancelAnimationFrame(frame);cancelAnimationFrame(resizeFrame);resizeObserver.disconnect();intersection.disconnect();
       document.removeEventListener('visibilitychange',schedule);reduced.removeEventListener('change',schedule);
-      stopClicks();clicks.length=0;canvas.width=1;canvas.height=1;},
+      stopClicks();hover?.dispose();clicks.length=0;canvas.width=1;canvas.height=1;},
   };
 }
 
@@ -918,13 +962,55 @@ function createLagoonScene(canvas, options={}) {
   });
 }
 
+function stepKoiSwimmer(spec,width,height,time,dt,pointer,clicks,reading) {
+  const m=spec.motion,length=Math.min(width*.48,height*spec.length*1.16);
+  let x=m.x*width,y=m.y*height,avoid=0;
+  const cosine=Math.cos(m.heading),sine=Math.sin(m.heading),radius=length*1.15;
+  function side(dx,dy){return cosine*dy-sine*dx>=0?-1:1;}
+  if(pointer?.strength) {
+    const dx=pointer.x-x,dy=pointer.y-y,distance=Math.hypot(dx,dy)||1;
+    const near=clamp(1-distance/radius,0,1),ahead=clamp((dx*cosine+dy*sine)/distance+.25,0,1);
+    if(near>0&&ahead>0&&!m.avoidSide)m.avoidSide=side(dx,dy);
+    avoid=m.avoidSide*near*near*ahead*.8*pointer.strength*(1-reading*.65);
+    if(distance>radius*1.35)m.avoidSide=0;
+  }else if(m.alert<.02)m.avoidSide=0;
+  for(const click of clicks) {
+    const dx=click.x-x,dy=click.y-y,near=clamp(1-Math.hypot(dx,dy)/radius,0,1);
+    if(near>0){if(!m.avoidSide)m.avoidSide=side(dx,dy);m.alert=Math.max(m.alert,near);}
+  }
+  m.avoid+=(avoid-m.avoid)*(1-Math.exp(-dt*2.5));m.alert*=Math.exp(-dt*1.2);
+  const wander=.35*(Math.sin(time*.09+spec.phase)-Math.sin(spec.phase))+
+    .16*(Math.sin(time*.041+spec.phase*1.7)-Math.sin(spec.phase*1.7));
+  const target=spec.heading+wander+m.avoid+m.avoidSide*m.alert*.35;
+  const difference=Math.atan2(Math.sin(target-m.heading),Math.cos(target-m.heading));
+  m.turn+=(clamp(difference*1.3,-.28,.28)-m.turn)*(1-Math.exp(-dt*4));
+  m.heading+=m.turn*dt;
+  const speed=Math.min(length*spec.pace,width*.018)*(.97+.03*Math.sin(m.stroke*2+spec.phase))*(1+m.alert*.16);
+  // Position follows the heading. Avoidance steers the fish instead of pushing
+  // its centre sideways or briefly reversing the velocity underneath its body.
+  x+=Math.cos(m.heading)*speed*dt;y+=Math.sin(m.heading)*speed*dt;
+  m.stroke+=(1.1+speed/length*6)*dt;
+  const c=Math.cos(m.heading),s=Math.sin(m.heading),margin=Math.max(4,length*.045);
+  const bounds={minX:(Math.min(-1.17*c,.62*c)-Math.abs(s)*.33)*length-margin,
+    maxX:(Math.max(-1.17*c,.62*c)+Math.abs(s)*.33)*length+margin,
+    minY:(Math.min(-1.17*s,.62*s)-Math.abs(c)*.33)*length-margin,
+    maxY:(Math.max(-1.17*s,.62*s)+Math.abs(c)*.33)*length+margin};
+  // The complete silhouette and wake leave first; entry starts beyond the
+  // opposite edge at the same heading. This works for diagonal routes as well.
+  if(c<0&&x+bounds.maxX< -1)x=width-bounds.minX+1;else if(c>0&&x+bounds.minX>width+1)x=-bounds.maxX-1;
+  if(s<0&&y+bounds.maxY< -1)y=height-bounds.minY+1;else if(s>0&&y+bounds.minY>height+1)y=-bounds.maxY-1;
+  m.x=x/width;m.y=y/height;
+  return {x,y,length,speed,angle:m.heading,beat:spec.phase+m.stroke,turn:m.turn,bounds};
+}
+
 function createKoiScene(canvas, options={}) {
   // Geometry and markings use fish coordinates; characters never flicker at random.
   const fish=[
-    {x:.86,y:.25,length:.24,angle:1.02,phase:.4,speed:.041,kind:'gold',depth:.94},
-    {x:.81,y:.62,length:.27,angle:-2.03,phase:3.2,speed:.035,kind:'ochre',depth:.64},
-    {x:.16,y:.72,length:.35,angle:.76,phase:5.3,speed:.031,kind:'white',depth:.96},
+    {x:.86,y:.25,length:.24,heading:-2.76,phase:.4,pace:.075,kind:'gold',depth:.94},
+    {x:.81,y:.62,length:.27,heading:.74,phase:3.2,pace:.065,kind:'ochre',depth:.64},
+    {x:.16,y:.72,length:.35,heading:-.52,phase:5.3,pace:.06,kind:'white',depth:.96},
   ];
+  for(const spec of fish)spec.motion={x:spec.x,y:spec.y,heading:spec.heading,turn:0,stroke:0,avoid:0,avoidSide:0,alert:0};
   const leaves=[
     {x:.93,y:.13,r:.062,angle:1.6,seed:13},
     {x:.91,y:.52,r:.044,angle:2.3,seed:31},
@@ -946,17 +1032,18 @@ function createKoiScene(canvas, options={}) {
   let waterGrid=null,waterWidth=0,waterHeight=0,waterCell=0,waterTime=0;
   const handledClicks=new WeakSet();
   return createAmbientScene(canvas,options,(ctx,view)=>{
-    const {width:w,height:h,time:t,quiet,preview,clicks}=view;
+    const {width:w,height:h,time:t,reading,preview,clicks,pointer}=view;
     const scale=Math.min(w/1280,h/820);
     const cell=preview?Math.max(1.25,Math.min(w/119,h/76)):clamp(10*scale,5,14);
     const stepY=cell*1.12;
     if(!waterGrid||waterWidth!==w||waterHeight!==h||waterCell!==cell){
       waterGrid=createKoiWaterGrid(w,h,cell);waterWidth=w;waterHeight=h;waterCell=cell;waterTime=t;
     }
-    waterGrid.step(Math.max(0,t-waterTime));waterTime=t;
+    const dt=clamp(t-waterTime,0,.05),freshClicks=[];
+    waterGrid.step(dt);waterTime=t;
     // Shared clicks remain in the view for 1.6 seconds; each press is applied once.
     for(const click of clicks)if(!handledClicks.has(click)){
-      handledClicks.add(click);waterGrid.impact(click.x,click.y);
+      handledClicks.add(click);waterGrid.impact(click.x,click.y);freshClicks.push(click);
     }
     const water=ctx.createLinearGradient(0,0,w,0);
     for(const [at,color] of [[0,'#429d8b'],[.12,'#58b3a0'],[.32,'#204f48'],[.70,'#1c4942'],[.91,'#318b79'],[1,'#3f9c86']])water.addColorStop(at,color);
@@ -987,18 +1074,12 @@ function createKoiScene(canvas, options={}) {
 
     function koi(spec) {
       const {phase,kind}=spec;
-      // A slow closed route has no wrap jump, and points in the direction of travel.
-      const a=spec.angle+t*spec.speed;
-      const length=Math.min(w*.48,h*spec.length*1.16);
-      const rx=w*(kind==='white'?.055:.045),ry=h*.105;
-      const x=w*spec.x+rx*(Math.sin(a)-Math.sin(spec.angle));
-      const y=h*spec.y-ry*(Math.cos(a)-Math.cos(spec.angle));
-      const angle=Math.atan2(ry*Math.sin(a),rx*Math.cos(a));
+      const {x,y,length,angle,beat,turn,bounds}=stepKoiSwimmer(spec,w,h,t,dt,pointer,freshClicks,reading);
+      if(x+bounds.maxX<0||x+bounds.minX>w||y+bounds.maxY<0||y+bounds.minY>h)return;
       const cos=Math.cos(angle),sin=Math.sin(angle);
-      const beat=t*(kind==='white'?1.62:1.83)+phase;
       const bend=u=>{
         const tail=clamp((.48-u)/1.05,0,1.34);
-        return Math.sin(beat-tail*3.2)*tail*tail*.073;
+        return (Math.sin(beat-tail*3.2)*.055+turn*.08)*tail*tail;
       };
       const bodyWidth=u=>{
         const s=(u+.57)/1.13;
@@ -1006,28 +1087,36 @@ function createKoiScene(canvas, options={}) {
       };
       const fins=[-1,1].map(side=>{
         const sweep=Math.sin(beat+.6+side*.45);
-        return {cx:.095-sweep*.018,cy:side*(.158+sweep*.025),angle:side*(.62+sweep*.18)};
+        const angle=side*(.62+sweep*.18);
+        return {cx:.095-sweep*.018,cy:side*(.158+sweep*.025),cos:Math.cos(angle),sin:Math.sin(angle)};
       });
+      const feather=cell/length*.52;
       function part(u,v) {
         const b=v-bend(u),radius=bodyWidth(u);
-        if(radius&&Math.abs(b)<radius)return {type:'body',b,radius};
+        let best=null;
+        function include(type,b,distance,radius=0) {
+          const p=clamp(.5+distance/(feather*2),0,1),coverage=p*p*(3-2*p);
+          if(coverage>(best?.coverage||0))best={type,b,radius,coverage};
+        }
+        if(radius)include('body',b,radius-Math.abs(b),radius);
+        if(best?.coverage===1)return best;
         // The tail grows from a narrow peduncle into two flexible lobes.
         const q=(-u-.47)/.36;
         if(q>0&&q<1) {
           const mid=bend(-.47)+(bend(-.83)-bend(-.47))*q;
           const distance=Math.abs(v-mid),fan=.024+q*.17;
-          if(distance<fan&&!(q>.70&&distance<(q-.70)*.30))return {type:'tail',b:v-mid};
+          include('tail',v-mid,Math.min(fan-distance,q*.36,(1-q)*.36,q>.70?distance-(q-.70)*.30:1));
         }
         for(const fin of fins) {
-          const fx=u-fin.cx,fy=v-bend(fin.cx)-fin.cy,c=Math.cos(fin.angle),s=Math.sin(fin.angle);
+          const fx=u-fin.cx,fy=v-bend(fin.cx)-fin.cy,c=fin.cos,s=fin.sin;
           const along=fx*c+fy*s,across=-fx*s+fy*c;
-          if((along/.14)**2+(across/.056)**2<1)return {type:'fin',b:across};
+          include('fin',across,(1-(along/.14)**2-(across/.056)**2)*.028);
         }
         for(const side of [-1,1]) {
           const fx=u+.30,fy=b-side*.085;
-          if((fx/.092)**2+(fy/.042)**2<1)return {type:'fin',b:fy};
+          include('fin',fy,(1-(fx/.092)**2-(fy/.042)**2)*.021);
         }
-        return null;
+        return best;
       }
       const palettes={
         white:{base:'#dddcc1',light:'#f0ecd6',edge:'#adbea3',red:'#ba6850',redLight:'#d78262',fin:'#b9cbb1',ink:'#3d6654'},
@@ -1062,15 +1151,16 @@ function createKoiScene(canvas, options={}) {
           color=Math.abs(p.b)>.07?palette.light:palette.fin;
           alpha=.70;char=n>.5?'/':':';
         } else char=n>.5?'/':'·';
-        tiles.push({px,py,color,char,alpha});
+        tiles.push({px,py,color,char,alpha:alpha*p.coverage,coverage:p.coverage});
       }
       ctx.globalAlpha=spec.depth*.16;ctx.fillStyle='#123f37';
-      for(const tile of tiles)ctx.fillRect(tile.px-cell*.25+5*scale,tile.py-stepY*.2+10*scale,cell,stepY);
+      for(const tile of tiles){ctx.globalAlpha=spec.depth*.13*tile.coverage;ctx.fillRect(tile.px-cell*.25+5*scale,tile.py-stepY*.2+10*scale,cell,stepY);}
       ctx.font=`${cell*.92}px Consolas,monospace`;
       for(const tile of tiles) {
         ctx.globalAlpha=spec.depth*tile.alpha;ctx.fillStyle=tile.color;
-        ctx.fillRect(tile.px-cell*.5,tile.py-stepY*.5,cell*.90,stepY*.90);
-        ctx.globalAlpha=spec.depth*tile.alpha*.80;ctx.fillStyle=palette.ink;
+        const size=.65+.35*tile.coverage;
+        ctx.fillRect(tile.px-cell*.45*size,tile.py-stepY*.45*size,cell*.90*size,stepY*.90*size);
+        ctx.globalAlpha=spec.depth*tile.alpha*.72*tile.coverage;ctx.fillStyle=palette.ink;
         ctx.fillText(tile.char,tile.px,tile.py);
       }
       ctx.globalAlpha=1;
@@ -1132,12 +1222,12 @@ function createKoiScene(canvas, options={}) {
       petal(x+26*size,y+12*size,2.3*size,2.40+angle,.83*.79);
     }
     // Reading mode dims the whole scene gently, with more shelter behind the text.
-    if(quiet){ctx.fillStyle='rgba(13,47,40,.27)';ctx.fillRect(0,0,w,h);}
-    const veil=ctx.createLinearGradient(0,0,w,0),alpha=quiet?.53:.07;
+    if(reading){ctx.fillStyle=`rgba(13,47,40,${reading*.27})`;ctx.fillRect(0,0,w,h);}
+    const veil=ctx.createLinearGradient(0,0,w,0),alpha=.07+reading*.46;
     veil.addColorStop(0,'rgba(15,48,41,0)');veil.addColorStop(.29,`rgba(15,48,41,${alpha})`);
     veil.addColorStop(.73,`rgba(15,48,41,${alpha})`);veil.addColorStop(1,'rgba(15,48,41,0)');
     ctx.fillStyle=veil;ctx.fillRect(0,0,w,h);
-  });
+  },{pointerMotion:true,maxPixels:3000000});
 }
 
 function createKoiWaterGrid(width,height,cell) {
@@ -1923,6 +2013,54 @@ function createSceneBackdrop(frame, scene, initialMotion) {
   };
 }
 
+// Dissolve only the previous background. The host UI and the new scene remain
+// live throughout the change; no whole-page snapshot interrupts typing.
+function createSceneDissolve(backdrop, origin, onFinish) {
+  const {frame,canvas:source}=backdrop,box=frame.getBoundingClientRect();
+  const layer=document.createElement('div');layer.className='ascii-scene-layer ascii-transition';
+  layer.setAttribute('aria-hidden','true');
+  const canvas=document.createElement('canvas');canvas.width=source.width;canvas.height=source.height;
+  layer.append(canvas);
+  const ctx=canvas.getContext('2d');ctx.drawImage(source,0,0);
+  const w=Math.max(1,box.width),h=Math.max(1,box.height),cell=clamp(h/65,9,16),stepY=cell*1.18;
+  const x=clamp((origin?.x??box.left+w*.72)-box.left,0,w),y=clamp((origin?.y??box.top+h*.65)-box.top,0,h);
+  const reach=Math.max(Math.hypot(x,y),Math.hypot(w-x,y),Math.hypot(x,h-y),Math.hypot(w-x,h-y));
+  const tiles=[];
+  for(let row=0;row<h/stepY;row++)for(let col=0;col<w/cell;col++)tiles.push({
+    x:col*cell,y:row*stepY,alpha:0,
+    delay:Math.hypot((col+.5)*cell-x,(row+.5)*stepY-y)/reach*.54+noise(col*17+row*43)*.045,
+  });
+  ctx.setTransform(canvas.width/w,0,0,canvas.height/h,0,0);
+  ctx.globalCompositeOperation='destination-out';ctx.fillStyle='#000';
+  let raf=0,started=0,alive=true;
+  function tick(now) {
+    if(!alive)return;
+    const progress=(now-started)/820;
+    if(progress>=1){onFinish();return;}
+    for(const tile of tiles) {
+      if(tile.alpha===1)continue;
+      const p=clamp((progress-tile.delay)/.34,0,1),alpha=p*p*(3-2*p);
+      if(alpha<=tile.alpha)continue;
+      if(alpha===1)ctx.clearRect(tile.x,tile.y,cell,stepY);
+      else {
+        // Remove only the incremental coverage. This avoids redrawing a full
+        // screenshot and keeps the dissolving cells continuous between frames.
+        ctx.globalAlpha=(alpha-tile.alpha)/(1-tile.alpha);
+        ctx.fillRect(tile.x,tile.y,cell,stepY);
+      }
+      tile.alpha=alpha;
+    }
+    raf=requestAnimationFrame(tick);
+  }
+  const hidden=()=>{if(document.hidden)onFinish();};
+  // Establish the old palette before applySelection changes its CSS variables.
+  getComputedStyle(frame).color;
+  return {
+    start(){frame.append(layer);started=performance.now();raf=requestAnimationFrame(tick);document.addEventListener('visibilitychange',hidden);window.addEventListener('resize',onFinish);},
+    dispose(){if(!alive)return;alive=false;cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',hidden);window.removeEventListener('resize',onFinish);layer.remove();canvas.width=1;canvas.height=1;},
+  };
+}
+
 function makeSceneTokens(c) {
   const tokens={};
   const alias=(names,value)=>{for(const name of names.split(' '))tokens['--dsw-alias-'+name]=value;};
@@ -2118,10 +2256,12 @@ function apply(ctx) {
     pendingSelection = null;
     const previous = activeTransition; activeTransition = null;
     previous?.animation?.cancel(); previous?.view?.skipTransition();
+    previous?.cleanup?.();
     delete document.documentElement.dataset.asciiTransition;
   }
   function finishTransition(current) {
     current.animation?.cancel();
+    current.cleanup?.();
     if (activeTransition !== current) return;
     activeTransition = null; delete document.documentElement.dataset.asciiTransition;
     const next = pendingSelection; pendingSelection = null;
@@ -2133,9 +2273,19 @@ function apply(ctx) {
     // retain only the latest request, including a click back on the current theme.
     if (activeTransition) { pendingSelection = {scene, origin}; return; }
     if (scene === state.scene) return;
-    if (!state.motion || reduced.matches || document.hidden || !document.startViewTransition) {
+    if (!state.motion || reduced.matches || document.hidden) {
       applySelection(scene); return;
     }
+    const refined=['claude-night','koi-pond'];
+    if(backdrop&&refined.includes(state.scene)&&refined.includes(scene)) {
+      const current={cleanup:null,finish:null};activeTransition=current;
+      document.documentElement.dataset.asciiTransition='dissolve';
+      current.finish=()=>finishTransition(current);
+      const transition=createSceneDissolve(backdrop,origin,current.finish);
+      current.cleanup=transition.dispose;
+      applySelection(scene);transition.start();return;
+    }
+    if(!document.startViewTransition){applySelection(scene);return;}
     const current = {view:null, animation:null}; activeTransition = current;
     document.documentElement.dataset.asciiTransition = "";
     try {
@@ -2156,9 +2306,10 @@ function apply(ctx) {
     }).catch(() => {}); // Hidden documents and skipped transitions reject ready.
     current.view.finished.then(() => finishTransition(current), () => finishTransition(current));
   }
-  function reduceTransition() { if (reduced.matches) activeTransition?.view?.skipTransition(); }
+  function skipActiveTransition() { if(activeTransition?.finish)activeTransition.finish();else activeTransition?.view?.skipTransition(); }
+  function reduceTransition() { if (reduced.matches) skipActiveTransition(); }
   reduced.addEventListener("change", reduceTransition);
-  function toggleMotion() { state.motion = !state.motion; if(!state.motion)activeTransition?.view?.skipTransition(); persistState(); }
+  function toggleMotion() { state.motion = !state.motion; if(!state.motion)skipActiveTransition(); persistState(); }
 
   function scan() {
     scanQueued = false; if (!alive) return;
@@ -2217,7 +2368,7 @@ function apply(ctx) {
     return h("div", {className:"ascii-footer"},
       h("button", { ref: trigger, type: "button", className: "ascii-switch", "aria-label": "场景主题", title: "场景主题", onClick: () => { setOpen(true); ref.current.showModal(); } },
         h("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, "aria-hidden": true }, h("path", { d: "M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.6-3.2 1.8 1.8 0 0 1 1.5-2.8H18a4 4 0 0 0 4-4c0-4.4-4.5-8-10-8Z" }), h("circle", { cx: 7, cy: 10, r: 1 }), h("circle", { cx: 11, cy: 7, r: 1 }), h("circle", { cx: 16, cy: 8, r: 1 })), h("span", null, "主题")),
-      h("dialog", { ref, className: "ascii-dialog", "aria-label": "场景主题", onClick: event => { if (event.target === ref.current) { const b = ref.current.getBoundingClientRect(); if (event.clientX < b.left || event.clientX > b.right || event.clientY < b.top || event.clientY > b.bottom) ref.current.close(); } }, onClose: () => { setOpen(false); trigger.current?.focus(); } },
+      h("dialog", { ref, className: "ascii-dialog", "aria-label": "场景主题", onClick: event => { if (event.target === ref.current) { const b = ref.current.getBoundingClientRect(); if (event.clientX < b.left || event.clientX > b.right || event.clientY < b.top || event.clientY > b.bottom) ref.current.close(); } }, onClose: () => { setOpen(false); if(document.activeElement===document.body||ref.current?.contains(document.activeElement))trigger.current?.focus(); } },
         h("div", { className: "ascii-dialog-head" }, h("span", null, "场景主题"), h("button", { type: "button", className: "ascii-dialog-close", "aria-label": "关闭主题选择", onClick: () => ref.current.close() }, "×")), open ? h(Picker) : null),
     );
   }

@@ -3,6 +3,8 @@
 body[data-ascii-scene] [data-ascii-shell]{background:transparent!important;isolation:isolate}
 body[data-ascii-scene] [data-ascii-shell]:before{background:color-mix(in srgb,var(--dsw-specific-sidebar-fill) 72%,transparent)!important;z-index:1}
 .ascii-shell-scene{border-radius:0;z-index:0}
+.ascii-transition{border-radius:0;z-index:0}
+html[data-ascii-transition="dissolve"] body,html[data-ascii-transition="dissolve"] [data-ascii-sidebar],html[data-ascii-transition="dissolve"] [data-composer-card],html[data-ascii-transition="dissolve"] .ascii-dialog{transition:color .5s ease,background-color .5s ease,border-color .5s ease}
 body[data-ascii-scene] [data-ascii-center],body[data-ascii-scene] [data-ascii-sidebar]{position:relative;z-index:1}
 body[data-ascii-scene] [data-ascii-center],body[data-ascii-scene] [data-ascii-content-surface],body[data-ascii-scene] [data-conversation-scroll],body[data-ascii-scene] [data-ascii-sidebar-content]{background:transparent!important}
 body[data-ascii-scene] [data-ascii-sidebar]{background:color-mix(in srgb,var(--dsw-specific-sidebar-fill) 72%,transparent)!important}

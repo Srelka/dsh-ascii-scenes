@@ -43,11 +43,43 @@ function listenForBackgroundClicks(root, onClick) {
   };
 }
 
+// Only empty background space responds. Hovering text, dragging, or leaving the
+// window releases the field without taking focus or capturing pointer input.
+function createScenePointer(canvas, root) {
+  let target = null;
+  const pointer = {x:0,y:0,strength:0};
+  function clear() { target = null; }
+  function move(event) {
+    if (event.pointerType === 'touch' || event.buttons || !isAsciiBackgroundTarget(event.target) || !getSelection()?.isCollapsed) { clear(); return; }
+    const box = canvas.getBoundingClientRect();
+    target = {x:event.clientX-box.left,y:event.clientY-box.top};
+    if (pointer.strength < .001) { pointer.x=target.x; pointer.y=target.y; }
+  }
+  root?.addEventListener('pointermove',move,{passive:true});
+  root?.addEventListener('pointerleave',clear,{passive:true});
+  root?.addEventListener('pointerdown',clear,{passive:true});
+  window.addEventListener('blur',clear);
+  return {
+    pointer,
+    step(dt, enabled) {
+      if (!enabled) { clear(); pointer.strength=0; return; }
+      const blend=1-Math.exp(-dt*5);
+      pointer.strength+=((target?1:0)-pointer.strength)*blend;
+      if(target){pointer.x+=(target.x-pointer.x)*blend;pointer.y+=(target.y-pointer.y)*blend;}
+    },
+    dispose() {
+      root?.removeEventListener('pointermove',move);root?.removeEventListener('pointerleave',clear);
+      root?.removeEventListener('pointerdown',clear);window.removeEventListener('blur',clear);
+    },
+  };
+}
+
 function createNightScene(canvas, { motion = true, quiet = false, preview = false, interactionRoot = null, getContentBounds = null } = {}) {
   const ctx = canvas.getContext("2d", { alpha: false });
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let w = 1, h = 1, dpr = 1, time = 0, last = 0, raf = 0, alive = true, visible = true;
-  let moving = motion, calm = quiet, grid = null;
+  let moving = motion, reading = quiet, calm = quiet ? 1 : 0, grid = null;
+  const hover = createScenePointer(canvas, interactionRoot);
   let worldWidth = 1, worldHeight = 1, originX = 0, originY = 0, resizeFrame = 0;
   const bursts=[];
   const stats = { frames: 0, drawMs: 0, longestDrawMs: 0, lastFrameMs: 0 };
@@ -108,9 +140,9 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
     const sw = 30 * cell;
     const cx = w - sw * .5 - (preview ? w * .025 : clamp(w * .025, 18, 52));
     const cy = preview ? h * .46 : sw * .5 + clamp(h * .025, 12, 32);
-    const alpha = calm ? .7 : .98;
+    const alpha = .98 - calm*.28;
     const halo = ctx.createRadialGradient(cx + cell * 2, cy, 4, cx + cell * 2, cy, sw * .74);
-    halo.addColorStop(0, `rgba(210,110,74,${calm ? .055 : .12})`); halo.addColorStop(1, "rgba(197,100,68,0)");
+    halo.addColorStop(0, `rgba(210,110,74,${.12-calm*.065})`); halo.addColorStop(1, "rgba(197,100,68,0)");
     ctx.fillStyle = halo; ctx.fillRect(cx - sw, cy - sw, sw * 2, sw * 2);
     const cellHeight = cell * STAR_CELL_ASPECT;
     ctx.font = `${Math.max(5, cell * 1.04)}px Consolas, 'Courier New', monospace`;
@@ -142,10 +174,14 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (let i = 0; i < dust.length; i++) {
       const p = dust[i];
-      const x = ((p.x * worldWidth + Math.sin(time * .35 + p.phase) * 24 + time * (p.depth - .4) * 11) % worldWidth + worldWidth) % worldWidth;
-      const y = ((p.y * worldHeight - time * (7 + p.depth * 15)) % worldHeight + worldHeight) % worldHeight;
+      let x = ((p.x * worldWidth + Math.sin(time * .35 + p.phase) * 24 + time * (p.depth - .4) * 11) % worldWidth + worldWidth) % worldWidth;
+      let y = ((p.y * worldHeight - time * (7 + p.depth * 15)) % worldHeight + worldHeight) % worldHeight;
+      const dx=x-hover.pointer.x,dy=y-hover.pointer.y,distance=Math.hypot(dx,dy);
+      const touch=Math.max(0,1-distance/150)**2*hover.pointer.strength*(1-calm*.7);
+      x+=dx*touch*.1*p.depth;y+=dy*touch*.1*p.depth;
       const safe = .25 + .75 * Math.pow(Math.abs(x / worldWidth - .47) * 1.8, .7);
-      const alpha = (.18 + p.depth * .19) * safe * (.65 + .35 * Math.sin(time * .8 + p.phase) ** 2) * (calm ? .75 : 1);
+      const border=clamp(Math.min(x,y,worldWidth-x,worldHeight-y)/28,0,1);
+      const alpha = ((.18 + p.depth * .19) * safe + touch*.16) * (.65 + .35 * Math.sin(time * .8 + p.phase) ** 2) * (1-calm*.25)*border;
       ctx.font = `${preview ? 6 : 9 + p.depth * 4}px Consolas, monospace`;
       ctx.fillStyle = i % 7 === 0 ? `rgba(225,135,104,${alpha})` : `rgba(194,173,152,${alpha * .7})`;
       ctx.fillText(p.glyph, x, y);
@@ -178,8 +214,8 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
     if (calm) {
       ctx.save(); ctx.translate(originX, originY);
       const veil = ctx.createLinearGradient(0, 0, w, 0);
-      veil.addColorStop(0, "rgba(20,18,15,0)"); veil.addColorStop(.2, "rgba(20,18,15,.68)");
-      veil.addColorStop(.7, "rgba(20,18,15,.68)"); veil.addColorStop(1, "rgba(20,18,15,.1)");
+      veil.addColorStop(0, "rgba(20,18,15,0)"); veil.addColorStop(.2, `rgba(20,18,15,${calm*.68})`);
+      veil.addColorStop(.7, `rgba(20,18,15,${calm*.68})`); veil.addColorStop(1, `rgba(20,18,15,${calm*.1})`);
       ctx.fillStyle = veil; ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
@@ -192,12 +228,13 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
     raf = 0;
     if (!alive || !moving || reduced.matches || document.hidden || !visible) return;
     const dt = last ? Math.min((now - last) / 1000, .05) : 0; last = now;
-    time += dt; stats.lastFrameMs = dt * 1000; draw(); raf = requestAnimationFrame(tick);
+    time += dt; calm+=((reading?1:0)-calm)*(1-Math.exp(-dt*3.6));
+    hover.step(dt,true);stats.lastFrameMs = dt * 1000; draw(); raf = requestAnimationFrame(tick);
   }
   function schedule() {
     cancelAnimationFrame(raf); raf = 0; last = 0;
     if (alive && moving && !reduced.matches && !document.hidden && visible) raf = requestAnimationFrame(tick);
-    else draw();
+    else { calm=reading?1:0;hover.step(0,false);draw(); }
   }
   const resizeObserver = new ResizeObserver(() => {
     if (!resizeFrame) resizeFrame = requestAnimationFrame(() => { resizeFrame = 0; resize(); });
@@ -214,8 +251,8 @@ function createNightScene(canvas, { motion = true, quiet = false, preview = fals
   return {
     stats,
     layout: resize,
-    update(options) { moving = options.motion; calm = options.quiet; if(!moving)bursts.length=0; draw(); schedule(); },
-    dispose() { alive = false; cancelAnimationFrame(raf); cancelAnimationFrame(resizeFrame); resizeObserver.disconnect(); intersection.disconnect(); document.removeEventListener("visibilitychange", schedule); reduced.removeEventListener("change", schedule); stopClicks(); bursts.length=0; if(grid){grid.width=1;grid.height=1;} grid = null; canvas.width=1;canvas.height=1; },
+    update(options) { moving = options.motion; reading = options.quiet; if(!moving)bursts.length=0; draw(); schedule(); },
+    dispose() { alive = false; cancelAnimationFrame(raf); cancelAnimationFrame(resizeFrame); resizeObserver.disconnect(); intersection.disconnect(); document.removeEventListener("visibilitychange", schedule); reduced.removeEventListener("change", schedule); stopClicks(); hover.dispose();bursts.length=0; if(grid){grid.width=1;grid.height=1;} grid = null; canvas.width=1;canvas.height=1; },
   };
 }
 

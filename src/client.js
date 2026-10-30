@@ -50,10 +50,12 @@ function apply(ctx) {
     pendingSelection = null;
     const previous = activeTransition; activeTransition = null;
     previous?.animation?.cancel(); previous?.view?.skipTransition();
+    previous?.cleanup?.();
     delete document.documentElement.dataset.asciiTransition;
   }
   function finishTransition(current) {
     current.animation?.cancel();
+    current.cleanup?.();
     if (activeTransition !== current) return;
     activeTransition = null; delete document.documentElement.dataset.asciiTransition;
     const next = pendingSelection; pendingSelection = null;
@@ -65,9 +67,19 @@ function apply(ctx) {
     // retain only the latest request, including a click back on the current theme.
     if (activeTransition) { pendingSelection = {scene, origin}; return; }
     if (scene === state.scene) return;
-    if (!state.motion || reduced.matches || document.hidden || !document.startViewTransition) {
+    if (!state.motion || reduced.matches || document.hidden) {
       applySelection(scene); return;
     }
+    const refined=['claude-night','koi-pond'];
+    if(backdrop&&refined.includes(state.scene)&&refined.includes(scene)) {
+      const current={cleanup:null,finish:null};activeTransition=current;
+      document.documentElement.dataset.asciiTransition='dissolve';
+      current.finish=()=>finishTransition(current);
+      const transition=createSceneDissolve(backdrop,origin,current.finish);
+      current.cleanup=transition.dispose;
+      applySelection(scene);transition.start();return;
+    }
+    if(!document.startViewTransition){applySelection(scene);return;}
     const current = {view:null, animation:null}; activeTransition = current;
     document.documentElement.dataset.asciiTransition = "";
     try {
@@ -88,9 +100,10 @@ function apply(ctx) {
     }).catch(() => {}); // Hidden documents and skipped transitions reject ready.
     current.view.finished.then(() => finishTransition(current), () => finishTransition(current));
   }
-  function reduceTransition() { if (reduced.matches) activeTransition?.view?.skipTransition(); }
+  function skipActiveTransition() { if(activeTransition?.finish)activeTransition.finish();else activeTransition?.view?.skipTransition(); }
+  function reduceTransition() { if (reduced.matches) skipActiveTransition(); }
   reduced.addEventListener("change", reduceTransition);
-  function toggleMotion() { state.motion = !state.motion; if(!state.motion)activeTransition?.view?.skipTransition(); persistState(); }
+  function toggleMotion() { state.motion = !state.motion; if(!state.motion)skipActiveTransition(); persistState(); }
 
   function scan() {
     scanQueued = false; if (!alive) return;
@@ -149,7 +162,7 @@ function apply(ctx) {
     return h("div", {className:"ascii-footer"},
       h("button", { ref: trigger, type: "button", className: "ascii-switch", "aria-label": "场景主题", title: "场景主题", onClick: () => { setOpen(true); ref.current.showModal(); } },
         h("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, "aria-hidden": true }, h("path", { d: "M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 1.6-3.2 1.8 1.8 0 0 1 1.5-2.8H18a4 4 0 0 0 4-4c0-4.4-4.5-8-10-8Z" }), h("circle", { cx: 7, cy: 10, r: 1 }), h("circle", { cx: 11, cy: 7, r: 1 }), h("circle", { cx: 16, cy: 8, r: 1 })), h("span", null, "主题")),
-      h("dialog", { ref, className: "ascii-dialog", "aria-label": "场景主题", onClick: event => { if (event.target === ref.current) { const b = ref.current.getBoundingClientRect(); if (event.clientX < b.left || event.clientX > b.right || event.clientY < b.top || event.clientY > b.bottom) ref.current.close(); } }, onClose: () => { setOpen(false); trigger.current?.focus(); } },
+      h("dialog", { ref, className: "ascii-dialog", "aria-label": "场景主题", onClick: event => { if (event.target === ref.current) { const b = ref.current.getBoundingClientRect(); if (event.clientX < b.left || event.clientX > b.right || event.clientY < b.top || event.clientY > b.bottom) ref.current.close(); } }, onClose: () => { setOpen(false); if(document.activeElement===document.body||ref.current?.contains(document.activeElement))trigger.current?.focus(); } },
         h("div", { className: "ascii-dialog-head" }, h("span", null, "场景主题"), h("button", { type: "button", className: "ascii-dialog-close", "aria-label": "关闭主题选择", onClick: () => ref.current.close() }, "×")), open ? h(Picker) : null),
     );
   }

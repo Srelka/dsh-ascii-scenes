@@ -1,16 +1,18 @@
 // Shared lifecycle for the new scenes. Claude keeps its original renderer.
-function createAmbientScene(canvas, options, render) {
+function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPixels=Infinity}={}) {
   const ctx = canvas.getContext('2d', {alpha:false});
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let width=1, height=1, ratio=1, time=0, last=0, frame=0, resizeFrame=0;
   let alive=true, visible=true, moving=options.motion!==false, quiet=!!options.quiet;
+  let reading=quiet?1:0;
+  const hover=pointerMotion?createScenePointer(canvas,options.interactionRoot):null;
   const clicks=[], stats={frames:0,drawMs:0,longestDrawMs:0};
   function draw() {
     if(!alive)return;
     const started=performance.now();
     ctx.setTransform(ratio,0,0,ratio,0,0);
     while(clicks.length && time-clicks[0].at>1.6)clicks.shift();
-    render(ctx,{width,height,time,quiet,preview:!!options.preview,clicks});
+    render(ctx,{width,height,time,quiet,reading,pointer:hover?.pointer,preview:!!options.preview,clicks});
     const elapsed=performance.now()-started;
     stats.drawMs=stats.drawMs*.95+elapsed*.05;
     stats.longestDrawMs=Math.max(stats.longestDrawMs,elapsed);stats.frames++;
@@ -18,17 +20,22 @@ function createAmbientScene(canvas, options, render) {
   function tick(now) {
     frame=0;
     if(!alive||!moving||reduced.matches||document.hidden||!visible)return;
-    time+=last?Math.min((now-last)/1000,.05):0;last=now;
+    const dt=last?Math.min((now-last)/1000,.05):0;last=now;time+=dt;
+    reading+=((quiet?1:0)-reading)*(1-Math.exp(-dt*3.6));hover?.step(dt,true);
     draw();frame=requestAnimationFrame(tick);
   }
   function schedule() {
-    cancelAnimationFrame(frame);frame=0;last=0;draw();
-    if(alive&&moving&&!reduced.matches&&!document.hidden&&visible)frame=requestAnimationFrame(tick);
+    cancelAnimationFrame(frame);frame=0;last=0;
+    const running=alive&&moving&&!reduced.matches&&!document.hidden&&visible;
+    if(!running){reading=quiet?1:0;hover?.step(0,false);}
+    draw();if(running)frame=requestAnimationFrame(tick);
   }
   function resize() {
     if(!alive)return;
     const box=canvas.getBoundingClientRect();width=Math.max(1,box.width);height=Math.max(1,box.height);
-    ratio=Math.min(devicePixelRatio||1,2);
+    // Dense water scenes cap decorative raster work on high-DPI displays. CSS
+    // geometry and all host text stay at their native size and resolution.
+    ratio=Math.min(devicePixelRatio||1,2,Math.max(1,Math.sqrt(maxPixels/(width*height))));
     const pixelWidth=Math.round(width*ratio),pixelHeight=Math.round(height*ratio);
     if(canvas.width!==pixelWidth||canvas.height!==pixelHeight){canvas.width=pixelWidth;canvas.height=pixelHeight;}
     draw();
@@ -50,7 +57,7 @@ function createAmbientScene(canvas, options, render) {
     update(value){moving=value.motion;quiet=value.quiet;if(!moving)clicks.length=0;schedule();},
     dispose(){alive=false;cancelAnimationFrame(frame);cancelAnimationFrame(resizeFrame);resizeObserver.disconnect();intersection.disconnect();
       document.removeEventListener('visibilitychange',schedule);reduced.removeEventListener('change',schedule);
-      stopClicks();clicks.length=0;canvas.width=1;canvas.height=1;},
+      stopClicks();hover?.dispose();clicks.length=0;canvas.width=1;canvas.height=1;},
   };
 }
 
