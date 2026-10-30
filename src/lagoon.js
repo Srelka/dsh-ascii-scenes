@@ -36,13 +36,15 @@ function createLagoonScene(canvas, options={}) {
         glideX:clamp(r.x+Math.cos(angle+turn*.35)*glide,-4,4)-r.x,
         glideY:clamp(r.y+Math.sin(angle+turn*.35)*glide,-4,4)-r.y};
     }
-    const sea=ctx.createLinearGradient(0,0,w,h*.16);
-    for(const[at,color]of[[0,'#43babe'],[.13,'#42c3c5'],[.32,'#206b76'],[.69,'#18586a'],[.9,'#239eb8'],[1,'#218cae']])sea.addColorStop(at,color);
-    ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
-    const depth=ctx.createLinearGradient(0,0,0,h);
-    depth.addColorStop(0,'rgba(116,239,214,.1)');depth.addColorStop(1,'rgba(3,44,66,.34)');
-    ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
-    drawAmbientGrid(ctx,w,h,cell,'rgba(154,238,218,.026)');
+    view.background(ctx=>{
+      const sea=ctx.createLinearGradient(0,0,w,h*.16);
+      for(const[at,color]of[[0,'#43babe'],[.13,'#42c3c5'],[.32,'#206b76'],[.69,'#18586a'],[.9,'#239eb8'],[1,'#218cae']])sea.addColorStop(at,color);
+      ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
+      const depth=ctx.createLinearGradient(0,0,0,h);
+      depth.addColorStop(0,'rgba(116,239,214,.1)');depth.addColorStop(1,'rgba(3,44,66,.34)');
+      ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+      drawAmbientGrid(ctx,w,h,cell,'rgba(154,238,218,.026)');
+    });
 
     // Slanting shafts and sparse caustics continue underneath the host sidebar.
     for(let i=0;i<4;i++) {
@@ -77,6 +79,7 @@ function createLagoonScene(canvas, options={}) {
         const steer=Math.sin(stroke-.8+side*.24)*.42;
         polygons.push([[-4.7,side*2.9],[-5.4,side*4.3],[-8.8+steer,side*(6+steer)],[-9,side*4.65],[-6.6,side*2.6]]);
       }
+      const finBounds=polygons.map(poly=>({left:Math.min(...poly.map(p=>p[0])),right:Math.max(...poly.map(p=>p[0])),top:Math.min(...poly.map(p=>p[1])),bottom:Math.max(...poly.map(p=>p[1]))}));
       function inside(px,py,points) {
         let hit=false;
         for(let i=0,j=points.length-1;i<points.length;j=i++) {
@@ -100,7 +103,10 @@ function createLagoonScene(canvas, options={}) {
           return 'head';
         }
         if(px< -6.7&&px> -9.7&&Math.abs(py)<(px+9.7)*.24)return 'tail';
-        for(const poly of polygons)if(inside(px,py,poly))return 'fin';
+        for(let i=0;i<polygons.length;i++){
+          const box=finBounds[i];
+          if(px>=box.left&&px<=box.right&&py>=box.top&&py<=box.bottom&&inside(px,py,polygons[i]))return 'fin';
+        }
         return '';
       }
       ctx.save();ctx.globalAlpha=far?.66:1;

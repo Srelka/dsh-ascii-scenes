@@ -79,13 +79,15 @@ function createCloudScene(canvas, options={}) {
         positions[i].p=0;
       });
     }
-    const sky=ctx.createLinearGradient(0,0,w,0);
-    for(const [at,color] of [[0,'#70bef0'],[.12,'#6ebcf0'],[.31,'#b4dcf0'],[.75,'#bce0f2'],[.94,'#72bef0'],[1,'#7bc3f1']])sky.addColorStop(at,color);
-    ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
-    const depth=ctx.createLinearGradient(0,0,0,h);
-    depth.addColorStop(0,'rgba(255,255,255,0)');depth.addColorStop(1,'rgba(244,252,255,.24)');
-    ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
-    drawAmbientGrid(ctx,w,h,cell,'rgba(246,253,255,.025)');
+    view.background(ctx=>{
+      const sky=ctx.createLinearGradient(0,0,w,0);
+      for(const [at,color] of [[0,'#70bef0'],[.12,'#6ebcf0'],[.31,'#b4dcf0'],[.75,'#bce0f2'],[.94,'#72bef0'],[1,'#7bc3f1']])sky.addColorStop(at,color);
+      ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+      const depth=ctx.createLinearGradient(0,0,0,h);
+      depth.addColorStop(0,'rgba(255,255,255,0)');depth.addColorStop(1,'rgba(244,252,255,.24)');
+      ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+      drawAmbientGrid(ctx,w,h,cell,'rgba(246,253,255,.025)');
+    });
     ctx.font=`${Math.max(1.2,cell*.91)}px Consolas,monospace`;
     ctx.textAlign='center';ctx.textBaseline='middle';
     clouds.forEach((cloud,index)=>{

@@ -85,9 +85,11 @@ function createMoonScene(canvas, options={}) {
       }
       return amount;
     }
-    ctx.fillStyle=layout.sky;ctx.fillRect(0,0,w,h);
-    for(const glow of layout.edges){ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);}
-    drawAmbientGrid(ctx,w,h,cell,'rgba(127,153,222,.022)');
+    view.background(ctx=>{
+      ctx.fillStyle=layout.sky;ctx.fillRect(0,0,w,h);
+      for(const glow of layout.edges){ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);}
+      drawAmbientGrid(ctx,w,h,cell,'rgba(127,153,222,.022)');
+    });
 
     ctx.textAlign='center';ctx.textBaseline='middle';
     for(const star of stars) {

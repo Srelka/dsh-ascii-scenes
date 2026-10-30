@@ -133,6 +133,13 @@ function apply(ctx) {
   }
   const observer = new MutationObserver(records => {
     if (records.every(r => r.target instanceof Element && r.target.closest('.ascii-scene-layer,.ascii-clawd-stage,.ascii-picker,.ascii-transition'))) return;
+    // Plain conversation output does not change the attachment points. Keep
+    // other DOM changes observable, including controls beside the companion.
+    const controls='button,a,input,textarea,select,[contenteditable],[role="button"],[data-slot="conversation.hero.agentPreset"]';
+    const anchors=`[data-composer-card],[data-conversation-content],[data-shell-overlay],[data-rightbar-col],nav,[role="tree"],${controls}`;
+    if(records.every(r=>r.type==='childList'&&r.target instanceof Element&&r.target.closest('[data-conversation-scroll]')&&
+      !r.target.closest(controls)&&
+      ![...r.addedNodes,...r.removedNodes].some(node=>node instanceof Element&&(node.matches(anchors)||node.querySelector(anchors)))))return;
     if (!scanQueued) { scanQueued = true; queueMicrotask(scan); }
   });
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-content-phase"] });

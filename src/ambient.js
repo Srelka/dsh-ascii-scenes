@@ -1,18 +1,37 @@
 // Shared lifecycle for the new scenes. Claude keeps its original renderer.
-function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPixels=Infinity}={}) {
+function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPixels=Infinity,clickInterval=0}={}) {
   const ctx = canvas.getContext('2d', {alpha:false});
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let width=1, height=1, ratio=1, time=0, last=0, frame=0, resizeFrame=0;
   let alive=true, visible=true, moving=options.motion!==false, quiet=!!options.quiet;
-  let reading=quiet?1:0;
+  let reading=quiet?1:0,lastClick=-Infinity,backgroundCanvas=null;
   const hover=pointerMotion?createScenePointer(canvas,options.interactionRoot):null;
-  const clicks=[], stats={frames:0,drawMs:0,longestDrawMs:0};
+  const clicks=[], stats={frames:0,drawMs:0,longestDrawMs:0,backgroundPixels:0};
+  function releaseBackground() {
+    if(backgroundCanvas){backgroundCanvas.width=1;backgroundCanvas.height=1;backgroundCanvas=null;}
+    stats.backgroundPixels=0;
+  }
+  // One opaque backing layer per active scene, at exactly the display canvas
+  // resolution. Static previews need no second bitmap; resize/dispose releases it.
+  function background(paint) {
+    // A rounded-up edge is only partially painted by the original gradients.
+    // Flattening it would change frame-to-frame edge blending at fractional DPR.
+    const partialEdge=canvas.width>width*ratio||canvas.height>height*ratio;
+    if(partialEdge||options.preview||width<=1||height<=1||!moving||reduced.matches||document.hidden||!visible){releaseBackground();paint(ctx);return;}
+    if(!backgroundCanvas){
+      backgroundCanvas=document.createElement('canvas');
+      backgroundCanvas.width=canvas.width;backgroundCanvas.height=canvas.height;
+      const base=backgroundCanvas.getContext('2d',{alpha:false});base.setTransform(ratio,0,0,ratio,0,0);
+      paint(base);stats.backgroundPixels=canvas.width*canvas.height;
+    }
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(backgroundCanvas,0,0);ctx.restore();
+  }
   function draw() {
     if(!alive)return;
     const started=performance.now();
     ctx.setTransform(ratio,0,0,ratio,0,0);
     while(clicks.length && time-clicks[0].at>1.6)clicks.shift();
-    render(ctx,{width,height,time,quiet,reading,pointer:hover?.pointer,preview:!!options.preview,clicks});
+    render(ctx,{width,height,time,quiet,reading,pointer:hover?.pointer,preview:!!options.preview,clicks,background});
     const elapsed=performance.now()-started;
     stats.drawMs=stats.drawMs*.95+elapsed*.05;
     stats.longestDrawMs=Math.max(stats.longestDrawMs,elapsed);stats.frames++;
@@ -27,17 +46,19 @@ function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPix
   function schedule() {
     cancelAnimationFrame(frame);frame=0;last=0;
     const running=alive&&moving&&!reduced.matches&&!document.hidden&&visible;
-    if(!running){reading=quiet?1:0;hover?.step(0,false);}
+    if(!running){reading=quiet?1:0;hover?.step(0,false);releaseBackground();}
     draw();if(running)frame=requestAnimationFrame(tick);
   }
   function resize() {
     if(!alive)return;
-    const box=canvas.getBoundingClientRect();width=Math.max(1,box.width);height=Math.max(1,box.height);
+    const box=canvas.getBoundingClientRect(),nextWidth=Math.max(1,box.width),nextHeight=Math.max(1,box.height);
+    if(width!==nextWidth||height!==nextHeight)releaseBackground();
+    width=nextWidth;height=nextHeight;
     // Dense water scenes cap decorative raster work on high-DPI displays. CSS
     // geometry and all host text stay at their native size and resolution.
     ratio=Math.min(devicePixelRatio||1,2,Math.max(1,Math.sqrt(maxPixels/(width*height))));
     const pixelWidth=Math.round(width*ratio),pixelHeight=Math.round(height*ratio);
-    if(canvas.width!==pixelWidth||canvas.height!==pixelHeight){canvas.width=pixelWidth;canvas.height=pixelHeight;}
+    if(canvas.width!==pixelWidth||canvas.height!==pixelHeight){releaseBackground();canvas.width=pixelWidth;canvas.height=pixelHeight;}
     draw();
   }
   const resizeObserver=new ResizeObserver(()=>{
@@ -46,7 +67,10 @@ function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPix
   const intersection=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??false;schedule();});intersection.observe(canvas);
   document.addEventListener('visibilitychange',schedule);reduced.addEventListener('change',schedule);
   const stopClicks=listenForBackgroundClicks(options.interactionRoot,event=>{
-    if(!moving||reduced.matches)return;
+    if(!moving||reduced.matches||document.hidden||!visible)return;
+    const now=performance.now();
+    if(now-lastClick<clickInterval)return;
+    lastClick=now;
     const box=canvas.getBoundingClientRect();
     clicks.push({x:event.clientX-box.left,y:event.clientY-box.top,at:time});
     if(clicks.length>6)clicks.shift();draw();
@@ -57,7 +81,7 @@ function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPix
     update(value){moving=value.motion;quiet=value.quiet;if(!moving)clicks.length=0;schedule();},
     dispose(){alive=false;cancelAnimationFrame(frame);cancelAnimationFrame(resizeFrame);resizeObserver.disconnect();intersection.disconnect();
       document.removeEventListener('visibilitychange',schedule);reduced.removeEventListener('change',schedule);
-      stopClicks();hover?.dispose();clicks.length=0;canvas.width=1;canvas.height=1;},
+      stopClicks();hover?.dispose();releaseBackground();clicks.length=0;canvas.width=1;canvas.height=1;},
   };
 }
 

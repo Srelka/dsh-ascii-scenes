@@ -8,6 +8,19 @@ function createJellyfishScene(canvas, options={}) {
     {x:.74,y:.79,size:.24,phase:1.2,period:6.9,seed:193,color:[104,153,176],light:[155,200,207],far:true,opacity:.28},
   ].map(jelly=>({...jelly,ox:0,oy:0,vx:0,vy:0,burst:-100,px:0,py:0}));
   const layers=[...jellyfish].sort((a,b)=>a.size-b.size);
+  for(const jelly of jellyfish){
+    jelly.strands=Array.from({length:7},(_,strand)=>{
+      const length=13+Math.round(noise(jelly.seed+strand*17)*5);
+      return Array.from({length},(_,segment)=>{
+        const f=segment/(length-1),n=noise(jelly.seed+strand*73+segment*11);
+        return {f,n,alpha:(.69-f*.17)*(strand===3?.83:1)};
+      });
+    });
+  }
+  const particles=Array.from({length:94},(_,i)=>{
+    const depth=i%4===0?1:.55;
+    return {depth,x:noise(i*13+71),y:noise(i*7+43),speed:1.2+noise(i)*2.1,ink:`rgba(168,213,228,${(.055+noise(i+9)*.13)*depth})`};
+  });
   const seenClicks=new WeakSet(),events=[];
   const pulse=(time,jelly)=>(.5+.5*Math.sin(time*Math.PI*2/jelly.period+jelly.phase))**3;
   const burst=age=>age<0?0:(1-Math.exp(-age*26))*Math.exp(-age*2.3);
@@ -64,14 +77,16 @@ function createJellyfishScene(canvas, options={}) {
       jelly.ox=clamp(jelly.ox+jelly.vx*dt,-8,8);jelly.oy=clamp(jelly.oy+jelly.vy*dt,-9,7);
       position(jelly);
     }
-    const sea=ctx.createLinearGradient(0,0,0,h);
-    sea.addColorStop(0,'#0b3042');sea.addColorStop(.52,'#091d30');sea.addColorStop(1,'#061022');
-    ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
-    // The light and grid continue across the whole workspace, including the sidebar.
-    const water=ctx.createLinearGradient(0,0,w,0);
-    for(const [at,color] of [[0,'#124d718f'],[.16,'#1c69959c'],[.35,'#0f3e5c00'],
-      [.73,'#0f3e5c00'],[.93,'#15578b91'],[1,'#14508770']])water.addColorStop(at,color);
-    ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
+    view.background(ctx=>{
+      const sea=ctx.createLinearGradient(0,0,0,h);
+      sea.addColorStop(0,'#0b3042');sea.addColorStop(.52,'#091d30');sea.addColorStop(1,'#061022');
+      ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
+      // The light and grid continue across the whole workspace, including the sidebar.
+      const water=ctx.createLinearGradient(0,0,w,0);
+      for(const [at,color] of [[0,'#124d718f'],[.16,'#1c69959c'],[.35,'#0f3e5c00'],
+        [.73,'#0f3e5c00'],[.93,'#15578b91'],[1,'#14508770']])water.addColorStop(at,color);
+      ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
+    });
     for(let i=0;i<3;i++) {
       const x=w*(.14+i*.37)+Math.sin(t*.065+i*1.8)*w*.025;
       ctx.save();ctx.translate(x,0);ctx.rotate(.13+i*.035);
@@ -83,11 +98,11 @@ function createJellyfishScene(canvas, options={}) {
     ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.font=`${Math.max(2,cell*.85)}px Consolas,monospace`;
     for(let i=0;i<94;i++) {
-      const depth=i%4===0?1:.55;
-      let x=noise(i*13+71)*w+Math.sin(t*.16+i)*cell*1.5;
-      let y=((noise(i*7+43)*h-t*(1.2+noise(i)*2.1)*cell/10)%h+h)%h;
+      const p=particles[i],depth=p.depth;
+      let x=p.x*w+Math.sin(t*.16+i)*cell*1.5;
+      let y=((p.y*h-t*p.speed*cell/10)%h+h)%h;
       if(currents.length){const flow=flowAt(x,y);x+=flow.dx*cell*3.2*depth;y+=flow.dy*cell*3.2*depth;}
-      ctx.fillStyle=`rgba(168,213,228,${(.055+noise(i+9)*.13)*depth})`;ctx.fillText(i%9===0?':':'.',x,y);
+      ctx.fillStyle=p.ink;ctx.fillText(i%9===0?':':'.',x,y);
     }
     for(const jelly of layers) {
       const unit=cell*jelly.size,step=unit*1.34,phase=jelly.phase,hit=burst(t-jelly.burst);
@@ -96,8 +111,8 @@ function createJellyfishScene(canvas, options={}) {
       const angle=clamp(jelly.vx/42,-.24,.24)+Math.sin(t*.24+phase)*.035;
       ctx.save();ctx.translate(jelly.px,jelly.py);ctx.rotate(angle);
       const ink=(mix,alpha=1)=>{
-        const amount=clamp(mix+hit*.35,0,1),rgb=jelly.color.map((v,i)=>Math.round(v+(jelly.light[i]-v)*amount));
-        return `rgba(${rgb.join(',')},${alpha*opacity})`;
+        const amount=clamp(mix+hit*.35,0,1),c=jelly.color,l=jelly.light;
+        return `rgba(${Math.round(c[0]+(l[0]-c[0])*amount)},${Math.round(c[1]+(l[1]-c[1])*amount)},${Math.round(c[2]+(l[2]-c[2])*amount)},${alpha*opacity})`;
       };
       if(!jelly.far) {
         const glow=ctx.createRadialGradient(0,rim*.4,unit,0,rim*.4,unit*12);
@@ -113,9 +128,9 @@ function createJellyfishScene(canvas, options={}) {
         }
       }
       for(let strand=0;strand<7;strand++) {
-        const root=(strand-3)*1.7,length=13+Math.round(noise(jelly.seed+strand*17)*5);
-        for(let segment=0;segment<length;segment++) {
-          const f=segment/(length-1),lag=f*1.12;
+        const root=(strand-3)*1.7,segments=jelly.strands[strand];
+        for(let segment=0;segment<segments.length;segment++) {
+          const {f,n,alpha}=segments[segment],lag=f*1.12;
           const delayed=clamp(pulse(t-lag,jelly)+burst(t-jelly.burst-f*.55)*1.48,0,1.6);
           const wave=Math.sin(t*1.65+phase+strand*.53-f*5.2),bend=Math.sin(t*.58+phase-f*2.8);
           let px=root*unit*(1-delayed*.19)+unit*(wave*(.12+f*.85)+bend*f*.5);
@@ -124,7 +139,6 @@ function createJellyfishScene(canvas, options={}) {
             const flow=flowAt(jelly.px+px,jelly.py+py);px+=flow.dx*unit*(.25+f*2.4);py+=flow.dy*unit*f*1.7;
           }
           px-=jelly.vx*cell*f*f*.055;py-=jelly.vy*cell*f*f*.065;
-          const n=noise(jelly.seed+strand*73+segment*11),alpha=(.69-f*.17)*(strand===3?.83:1);
           if(segment>1&&n>.72) {
             ctx.font=`${unit*.82}px Consolas,monospace`;ctx.fillStyle=ink(.3,alpha*.54);ctx.fillText(n>.9?'o':':',px,py);
           }else tile(px,py,.17+n*.46,alpha,'t:%s'[Math.floor(n*4)],.74,.91);

@@ -11,16 +11,25 @@ function createFirefliesScene(canvas, options={}) {
     const {width:w,height:h,time:t,quiet,preview,clicks}=view;
     const cell=preview?Math.max(1.4,Math.min(w/100,h/63)):clamp(h/63,8,16);
     const scale=cell/13;
-    const sky=ctx.createLinearGradient(0,0,0,h);
-    sky.addColorStop(0,'#07131d');sky.addColorStop(.5,'#081b1b');sky.addColorStop(1,'#0b211b');
-    ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
-    // Continuous night air across the workspace, including behind the sidebar.
-    for(const [x,y,r,color]of[[.02,.25,.43,'25,77,90'],[.97,.2,.4,'21,63,85'],[.1,.86,.38,'32,84,54'],[.93,.88,.32,'32,73,50']]) {
-      const glow=ctx.createRadialGradient(w*x,h*y,0,w*x,h*y,Math.max(w*.55,h)*r);
-      glow.addColorStop(0,`rgba(${color},.28)`);glow.addColorStop(1,`rgba(${color},0)`);
-      ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
-    }
-    drawAmbientGrid(ctx,w,h,cell,'rgba(103,160,144,.022)');
+    view.background(ctx=>{
+      const sky=ctx.createLinearGradient(0,0,0,h);
+      sky.addColorStop(0,'#07131d');sky.addColorStop(.5,'#081b1b');sky.addColorStop(1,'#0b211b');
+      ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+      // Continuous night air across the workspace, including behind the sidebar.
+      for(const [x,y,r,color]of[[.02,.25,.43,'25,77,90'],[.97,.2,.4,'21,63,85'],[.1,.86,.38,'32,84,54'],[.93,.88,.32,'32,73,50']]) {
+        const glow=ctx.createRadialGradient(w*x,h*y,0,w*x,h*y,Math.max(w*.55,h)*r);
+        glow.addColorStop(0,`rgba(${color},.28)`);glow.addColorStop(1,`rgba(${color},0)`);
+        ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+      }
+      drawAmbientGrid(ctx,w,h,cell,'rgba(103,160,144,.022)');
+      // These distant characters are rooted; cache them with the sky.
+      ctx.font=`${cell*.68}px Consolas,monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle='rgba(67,109,80,.2)';
+      for(let i=0;i<w/cell;i++) {
+        const x=i*cell,y=h*(.965-.018*Math.sin(i*.13)-.012*noise(i+71));
+        ctx.fillText(i%3?':':'.',x,y);
+      }
+    });
     // Cache the rooted character meadow. Only the tips sway; glyphs do not shuffle.
     const key=`${w}:${h}:${cell}`;
     if(key!==bankKey) {
@@ -36,27 +45,24 @@ function createFirefliesScene(canvas, options={}) {
             const rnd=noise(col*41+row*17+layer*233);
             if(row>0&&rnd<.16)continue;
             bank.push({x,y:h-(row+.5)*rowsY,unit,row,rows,n,rnd,layer,
-              glyph:'stx%:;'[Math.floor(rnd*6)]});
+              glyph:'stx%:;'[Math.floor(rnd*6)],font:`${Math.max(1.2,unit*.94)}px Consolas,monospace`,
+              fill:layer?`rgba(52,108,79,${.11+rnd*.14})`:'rgba(35,68,52,.2)',
+              ink:layer?`rgba(117,178,135,${.32+rnd*.32})`:`rgba(64,112,85,${.25+rnd*.2})`});
           }
         }
       }
     }
-    // Low distant hummocks keep depth without adding a competing horizon line.
-    ctx.font=`${cell*.68}px Consolas,monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillStyle='rgba(67,109,80,.2)';
-    for(let i=0;i<w/cell;i++) {
-      const x=i*cell,y=h*(.965-.018*Math.sin(i*.13)-.012*noise(i+71));
-      ctx.fillText(i%3?':':'.',x,y);
-    }
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    let bankFont='';
     for(const blade of bank) {
       const {unit,row,rows,n,rnd,layer}=blade;
       const tip=(row+1)/rows;
       const sway=Math.sin(t*.7+blade.x/w*7+n*.7)*unit*.15*tip*tip;
       const x=blade.x+sway,y=blade.y;
-      ctx.fillStyle=layer?`rgba(52,108,79,${.11+rnd*.14})`:'rgba(35,68,52,.2)';
+      ctx.fillStyle=blade.fill;
       ctx.fillRect(x-unit*.45,y-unit*.61,unit*.86,unit*1.19);
-      ctx.font=`${Math.max(1.2,unit*.94)}px Consolas,monospace`;
-      ctx.fillStyle=layer?`rgba(117,178,135,${.32+rnd*.32})`:`rgba(64,112,85,${.25+rnd*.2})`;
+      if(bankFont!==blade.font){ctx.font=blade.font;bankFont=blade.font;}
+      ctx.fillStyle=blade.ink;
       ctx.fillText(blade.glyph,x,y);
     }
     for(const fly of flies) {

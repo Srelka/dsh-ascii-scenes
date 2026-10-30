@@ -6,8 +6,9 @@ function createPaperScene(canvas, options={}) {
     {x:.17,y:.79,size:.9,angle:1.01,phase:3.3,seed:107,depth:1},
     {x:.925,y:.73,size:.88,angle:-.51,phase:4.5,seed:139,depth:1},
   ];
-  let cachedCell=0,cachedRatio=0,papers=[];
+  let cachedCell=0,cachedRatio=0,papers=[],waterLayout=null;
   const touches=[],touchDuration=2.6;
+  const stillWater={x:0,y:0,light:0};
 
   // Sample the folds on an upright character lattice. The paper's texture is
   // fixed to its hull, so the letters travel with it instead of flickering.
@@ -49,11 +50,31 @@ function createPaperScene(canvas, options={}) {
     return {bitmap,left,top,width:bitmap.width/ratio,height:bitmap.height/ratio};
   }
 
+  function buildWater(ctx,w,h,cell,ratio) {
+    const water=ctx.createLinearGradient(0,0,w,0);
+    for(const[at,color]of[[0,'#579da5'],[.12,'#70b5b8'],[.31,'#2b5c63'],[.63,'#244f59'],[.81,'#285d68'],[1,'#3e8c9d']])water.addColorStop(at,color);
+    const depth=ctx.createLinearGradient(0,0,0,h);
+    depth.addColorStop(0,'rgba(174,215,204,.07)');depth.addColorStop(1,'rgba(9,53,66,.16)');
+    const vertical=new Path2D(),horizontal=new Path2D(),step=Math.max(10,cell*2);
+    for(let x=0;x<w;x+=cell)for(let y=0;y<h+step;y+=step){
+      const px=Math.round(x)+.5,py=Math.min(y,h);
+      if(y===0)vertical.moveTo(px,py);else vertical.lineTo(px,py);
+    }
+    for(let y=0;y<h;y+=cell)for(let x=0;x<w+step;x+=step){
+      const px=Math.min(x,w),py=Math.round(y)+.5;
+      if(x===0)horizontal.moveTo(px,py);else horizontal.lineTo(px,py);
+    }
+    return {w,h,ratio,water,depth,vertical,horizontal};
+  }
+
   const controller=createAmbientScene(canvas,options,(ctx,view)=>{
     const {width:w,height:h,time:t,quiet,preview,clicks}=view;
     const cell=preview?Math.max(.8,Math.min(w/120,h/72)):clamp(Math.min(w/120,h/72),5,14);
     const ratio=Math.min(devicePixelRatio||1,2);
-    if(cell!==cachedCell||ratio!==cachedRatio){papers=boats.map(boat=>buildBoat(boat,cell,ratio));cachedCell=cell;cachedRatio=ratio;}
+    if(cell!==cachedCell||ratio!==cachedRatio){
+      for(const paper of papers){paper.bitmap.width=1;paper.bitmap.height=1;}
+      papers=boats.map(boat=>buildBoat(boat,cell,ratio));cachedCell=cell;cachedRatio=ratio;
+    }
     // The shared click list expires at 1.6 s. Retain at most four touches so
     // the selected water response can finish its 2.6 s decay without a cut.
     while(touches.length&&t-touches[0].at>=touchDuration)touches.shift();
@@ -66,6 +87,7 @@ function createPaperScene(canvas, options={}) {
       return {x:click.x,y:click.y,front:age*125,fade:Math.sin(Math.PI*age/touchDuration)**.65*(quiet?.55:1),phase:noise(click.x+click.y)*Math.PI*2};
     });
     function deformation(x,y) {
+      if(!waves.length)return stillWater;
       let shiftX=0,shiftY=0,light=0;
       for(const wave of waves) {
         const dx=x-wave.x,dy=(y-wave.y)*1.55,r=Math.hypot(dx,dy),d=(r-wave.front)/44;
@@ -77,28 +99,32 @@ function createPaperScene(canvas, options={}) {
       }
       return {x:shiftX,y:shiftY,light};
     }
-    const water=ctx.createLinearGradient(0,0,w,0);
-    for(const[at,color]of[[0,'#579da5'],[.12,'#70b5b8'],[.31,'#2b5c63'],[.63,'#244f59'],[.81,'#285d68'],[1,'#3e8c9d']])water.addColorStop(at,color);
-    ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
-    const depth=ctx.createLinearGradient(0,0,0,h);
-    depth.addColorStop(0,'rgba(174,215,204,.07)');depth.addColorStop(1,'rgba(9,53,66,.16)');
-    ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+    // This renderer intentionally retains its water compositing from frame to
+    // frame. Cache the gradients, not a flattened bitmap, to preserve it exactly.
+    if(!waterLayout||waterLayout.w!==w||waterLayout.h!==h||waterLayout.ratio!==ratio){
+      waterLayout=buildWater(ctx,w,h,cell,ratio);
+    }
+    ctx.fillStyle=waterLayout.water;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle=waterLayout.depth;ctx.fillRect(0,0,w,h);
     if(cell>=2) {
       const step=Math.max(10,cell*2);
       ctx.strokeStyle='rgba(186,229,218,.035)';ctx.lineWidth=1;
       // Use the same lattice paths before, during and after a touch so the
       // untouched water does not change brightness when the wave starts.
-      ctx.beginPath();
-      for(let x=0;x<w;x+=cell)for(let y=0;y<h+step;y+=step) {
-        const px=Math.round(x)+.5,py=Math.min(y,h),q=deformation(px,py);
-        if(y===0)ctx.moveTo(px+q.x,py+q.y);else ctx.lineTo(px+q.x,py+q.y);
+      if(!waves.length){ctx.stroke(waterLayout.vertical);ctx.stroke(waterLayout.horizontal);}
+      else {
+        ctx.beginPath();
+        for(let x=0;x<w;x+=cell)for(let y=0;y<h+step;y+=step) {
+          const px=Math.round(x)+.5,py=Math.min(y,h),q=deformation(px,py);
+          if(y===0)ctx.moveTo(px+q.x,py+q.y);else ctx.lineTo(px+q.x,py+q.y);
+        }
+        ctx.stroke();ctx.beginPath();
+        for(let y=0;y<h;y+=cell)for(let x=0;x<w+step;x+=step) {
+          const px=Math.min(x,w),py=Math.round(y)+.5,q=deformation(px,py);
+          if(x===0)ctx.moveTo(px+q.x,py+q.y);else ctx.lineTo(px+q.x,py+q.y);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();ctx.beginPath();
-      for(let y=0;y<h;y+=cell)for(let x=0;x<w+step;x+=step) {
-        const px=Math.min(x,w),py=Math.round(y)+.5,q=deformation(px,py);
-        if(x===0)ctx.moveTo(px+q.x,py+q.y);else ctx.lineTo(px+q.x,py+q.y);
-      }
-      ctx.stroke();
     }
 
     ctx.textAlign='center';ctx.textBaseline='middle';
@@ -173,5 +199,7 @@ function createPaperScene(canvas, options={}) {
   });
   const update=controller.update;
   controller.update=value=>{if(!value.motion)touches.length=0;update(value);};
+  const dispose=controller.dispose;
+  controller.dispose=()=>{for(const paper of papers){paper.bitmap.width=1;paper.bitmap.height=1;}papers=[];waterLayout=null;dispose();};
   return controller;
 }

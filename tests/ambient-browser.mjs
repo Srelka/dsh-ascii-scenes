@@ -27,8 +27,13 @@ const subjectCentre=()=>page.locator('canvas').evaluate(c=>{
 const start=await subjectCentre();await page.clock.runFor(2000);const end=await subjectCentre();
 assert.ok(end-start>5,'The main subject must visibly translate, not only change brightness');
 await page.screenshot({path:path.join(out,'scene-2.png')});
-const background=await page.locator('canvas').evaluate(c=>c.toDataURL());await page.mouse.click(1000,620);
-assert.notEqual(background,await page.locator('canvas').evaluate(c=>c.toDataURL()));
+const background=await page.locator('canvas').evaluate(c=>c.toDataURL()),beforeClickFrames=await page.evaluate(()=>scene.stats.frames);
+await page.mouse.click(1000,620);
+assert.equal(await page.evaluate(()=>scene.stats.frames),beforeClickFrames+1,'A background press must reach the renderer');
+// Cloud gusts start at zero displacement; inspect their subsequent motion,
+// rather than relying on GPU/readback rounding to change an immediate redraw.
+await page.clock.runFor(250);
+assert.ok(background!==await page.locator('canvas').evaluate(c=>c.toDataURL()),'Feedback must animate after the press');
 const beforeButton=await page.locator('canvas').evaluate(c=>c.toDataURL());await page.getByRole('button').click();
 assert.equal(beforeButton,await page.locator('canvas').evaluate(c=>c.toDataURL()));
 const sizes=[];

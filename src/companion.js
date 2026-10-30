@@ -66,7 +66,7 @@ function createClawd(stage, card, motion) {
   let alive = true, moving = motion, visible = true, hovered = false, focused = false;
   let frame = 0, last = 0, time = 0, distanceWalked = 0, replyUntil = 0, replyTimer = 0;
   let geometry = null, x = 0, target = 0, velocity = 0, lastLayout = -Infinity;
-  let nextDecision = 6;
+  let nextDecision = 6,paintedPose='',paintedPosition='',paintedAction='';
 
   function layout(force = false) {
     if (!alive || !territory.isConnected) return;
@@ -122,21 +122,28 @@ function createClawd(stage, card, motion) {
     const replyElapsed = .65 - (replyUntil - time);
     const closed = replying ? replyElapsed < .16 || (replyElapsed > .3 && replyElapsed < .44)
       : moving && !reduced.matches && time % 7.1 > 6.94;
-    context.clearRect(0, 0, CLAWD_WIDTH, CLAWD_HEIGHT);
-    context.drawImage(sprite(feet, closed), 0, 0);
-    if (replying && moving && !reduced.matches) {
-      const fade = Math.sin(Math.PI * clamp(replyElapsed / .65, 0, 1));
-      context.fillStyle = `rgba(231,177,135,${fade * .75})`;
-      for (const sx of [4, 101]) {
-        context.fillRect(sx, 17, 3, 1); context.fillRect(sx + 1, 16, 1, 3);
+    const replyingMotion=replying&&moving&&!reduced.matches,pose=`${feet}:${closed}:${replyingMotion?replyElapsed:0}`;
+    if(pose!==paintedPose){
+      paintedPose=pose;
+      context.clearRect(0, 0, CLAWD_WIDTH, CLAWD_HEIGHT);
+      context.drawImage(sprite(feet, closed), 0, 0);
+      if (replyingMotion) {
+        const fade = Math.sin(Math.PI * clamp(replyElapsed / .65, 0, 1));
+        context.fillStyle = `rgba(231,177,135,${fade * .75})`;
+        for (const sx of [4, 101]) {
+          context.fillRect(sx, 17, 3, 1); context.fillRect(sx + 1, 16, 1, 3);
+        }
       }
     }
     // Translate the whole sprite at integer pixels, preserving every internal edge.
     const left = Math.round(x - CLAWD_ANCHOR_X), top = Math.round(geometry.y - CLAWD_ANCHOR_Y);
-    canvas.style.transform = `translate(${left}px,${top}px)`;
-    hit.style.transform = `translate(${left + 4}px,${top + 6}px)`;
-    hit.style.width = '100px'; hit.style.height = '58px';
-    stage.dataset.clawdAction = replying ? 'reply' : walking ? 'walk' : 'rest';
+    const position=`${left}:${top}`,action=replying?'reply':walking?'walk':'rest';
+    if(position!==paintedPosition){
+      paintedPosition=position;canvas.style.transform = `translate(${left}px,${top}px)`;
+      hit.style.transform = `translate(${left + 4}px,${top + 6}px)`;
+      hit.style.width = '100px'; hit.style.height = '58px';
+    }
+    if(action!==paintedAction){paintedAction=action;stage.dataset.clawdAction=action;}
   }
 
   function tick(now) {

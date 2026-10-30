@@ -46,7 +46,12 @@ function createKoiScene(canvas, options={}) {
     {x:.81,y:.62,length:.27,heading:.74,phase:3.2,pace:.065,kind:'ochre',depth:.64},
     {x:.16,y:.72,length:.35,heading:-.52,phase:5.3,pace:.06,kind:'white',depth:.96},
   ];
-  for(const spec of fish)spec.motion={x:spec.x,y:spec.y,heading:spec.heading,turn:0,stroke:0,avoid:0,avoidSide:0,alert:0};
+  for(const spec of fish){spec.motion={x:spec.x,y:spec.y,heading:spec.heading,turn:0,stroke:0,avoid:0,avoidSide:0,alert:0};spec.tiles=[];}
+  const palettes={
+    white:{base:'#dddcc1',light:'#f0ecd6',edge:'#adbea3',red:'#ba6850',redLight:'#d78262',fin:'#b9cbb1',ink:'#3d6654'},
+    gold:{base:'#bc9750',light:'#d6b665',edge:'#91894b',red:'#bd7d42',redLight:'#d59a50',fin:'#ad9a50',ink:'#405a37'},
+    ochre:{base:'#aa8743',light:'#c29a4d',edge:'#7f7840',red:'#996b3c',redLight:'#b88542',fin:'#8b8747',ink:'#3b5436'},
+  };
   const leaves=[
     {x:.93,y:.13,r:.062,angle:1.6,seed:13},
     {x:.91,y:.52,r:.044,angle:2.3,seed:31},
@@ -65,7 +70,7 @@ function createKoiScene(canvas, options={}) {
   const petalMask=['..aa..','.abba.','abbbbc','abbbcc','.bbcc.','..cc..','..d...'];
   const petalColors={a:'#ebc3b7',b:'#dca4a4',c:'#bf7e89',d:'#946675'};
   const glyphs='st%:s;';
-  let waterGrid=null,waterWidth=0,waterHeight=0,waterCell=0,waterTime=0;
+  let waterGrid=null,waterWidth=0,waterHeight=0,waterCell=0,waterTime=0,waterMarks=[];
   const handledClicks=new WeakSet();
   return createAmbientScene(canvas,options,(ctx,view)=>{
     const {width:w,height:h,time:t,reading,preview,clicks,pointer}=view;
@@ -74,6 +79,11 @@ function createKoiScene(canvas, options={}) {
     const stepY=cell*1.12;
     if(!waterGrid||waterWidth!==w||waterHeight!==h||waterCell!==cell){
       waterGrid=createKoiWaterGrid(w,h,cell);waterWidth=w;waterHeight=h;waterCell=cell;waterTime=t;
+      waterMarks=[];
+      for(let row=0;row<h/stepY;row+=2)for(let col=0;col<w/cell;col+=2){
+        const n=noise(col*19+row*37);if(n<.57)continue;
+        waterMarks.push({x:(col+.5)*cell,y:(row+.5)*stepY,phase:col*.18+row*.31,glyph:n>.88?'~':n>.72?':':'·'});
+      }
     }
     const dt=clamp(t-waterTime,0,.05),freshClicks=[];
     waterGrid.step(dt);waterTime=t;
@@ -81,12 +91,14 @@ function createKoiScene(canvas, options={}) {
     for(const click of clicks)if(!handledClicks.has(click)){
       handledClicks.add(click);waterGrid.impact(click.x,click.y);freshClicks.push(click);
     }
-    const water=ctx.createLinearGradient(0,0,w,0);
-    for(const [at,color] of [[0,'#429d8b'],[.12,'#58b3a0'],[.32,'#204f48'],[.70,'#1c4942'],[.91,'#318b79'],[1,'#3f9c86']])water.addColorStop(at,color);
-    ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
-    const depth=ctx.createLinearGradient(0,0,0,h);
-    depth.addColorStop(0,'rgba(134,210,178,.10)');depth.addColorStop(1,'rgba(4,46,41,.24)');
-    ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+    view.background(ctx=>{
+      const water=ctx.createLinearGradient(0,0,w,0);
+      for(const [at,color] of [[0,'#429d8b'],[.12,'#58b3a0'],[.32,'#204f48'],[.70,'#1c4942'],[.91,'#318b79'],[1,'#3f9c86']])water.addColorStop(at,color);
+      ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
+      const depth=ctx.createLinearGradient(0,0,0,h);
+      depth.addColorStop(0,'rgba(134,210,178,.10)');depth.addColorStop(1,'rgba(4,46,41,.24)');
+      ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+    });
     waterGrid.draw(ctx);
 
     // Low-frequency reflections move through the whole workspace, including the sidebar.
@@ -97,15 +109,13 @@ function createKoiScene(canvas, options={}) {
       ctx.fillStyle=light;ctx.fillRect(x-w*.09,0,w*.18,h);
     }
     ctx.font=`${cell*.78}px Consolas,monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
-    for(let row=0;row<h/stepY;row+=2)for(let col=0;col<w/cell;col+=2) {
-      const n=noise(col*19+row*37);
-      if(n<.57)continue;
-      const ox=(col+.5)*cell,oy=(row+.5)*stepY,wave=waterGrid.sample(ox,oy);
+    for(const mark of waterMarks) {
+      const ox=mark.x,oy=mark.y,wave=waterGrid.sample(ox,oy);
       const x=ox+wave.x,y=oy+wave.y;
       const edge=.22+.78*Math.abs(x/w-.5)*2;
-      const alpha=Math.min(.38,(.025+.055*(.5+.5*Math.sin(col*.18+row*.31+t*.30)))*edge+Math.abs(wave.light)*.28);
+      const alpha=Math.min(.38,(.025+.055*(.5+.5*Math.sin(mark.phase+t*.30)))*edge+Math.abs(wave.light)*.28);
       ctx.fillStyle=`rgba(181,227,185,${alpha})`;
-      ctx.fillText(n>.88?'~':n>.72?':':'·',x,y);
+      ctx.fillText(mark.glyph,x,y);
     }
 
     function koi(spec) {
@@ -124,27 +134,30 @@ function createKoiScene(canvas, options={}) {
       const fins=[-1,1].map(side=>{
         const sweep=Math.sin(beat+.6+side*.45);
         const angle=side*(.62+sweep*.18);
-        return {cx:.095-sweep*.018,cy:side*(.158+sweep*.025),cos:Math.cos(angle),sin:Math.sin(angle)};
+        const cx=.095-sweep*.018;
+        return {cx,cy:side*(.158+sweep*.025),cos:Math.cos(angle),sin:Math.sin(angle),bend:bend(cx)};
       });
       const feather=cell/length*.52;
+      const tailStart=bend(-.47),tailEnd=bend(-.83),hit={type:'',b:0,radius:0,coverage:0};
+      function include(type,b,distance,radius=0) {
+        if(distance<=-feather)return;
+        const p=clamp(.5+distance/(feather*2),0,1),coverage=p*p*(3-2*p);
+        if(coverage>hit.coverage){hit.type=type;hit.b=b;hit.radius=radius;hit.coverage=coverage;}
+      }
       function part(u,v) {
-        const b=v-bend(u),radius=bodyWidth(u);
-        let best=null;
-        function include(type,b,distance,radius=0) {
-          const p=clamp(.5+distance/(feather*2),0,1),coverage=p*p*(3-2*p);
-          if(coverage>(best?.coverage||0))best={type,b,radius,coverage};
-        }
+        const b=v-bend(u),radius=Math.abs(b)<.163*1.2+feather?bodyWidth(u):0;
+        hit.coverage=0;
         if(radius)include('body',b,radius-Math.abs(b),radius);
-        if(best?.coverage===1)return best;
+        if(hit.coverage===1)return hit;
         // The tail grows from a narrow peduncle into two flexible lobes.
         const q=(-u-.47)/.36;
         if(q>0&&q<1) {
-          const mid=bend(-.47)+(bend(-.83)-bend(-.47))*q;
+          const mid=tailStart+(tailEnd-tailStart)*q;
           const distance=Math.abs(v-mid),fan=.024+q*.17;
           include('tail',v-mid,Math.min(fan-distance,q*.36,(1-q)*.36,q>.70?distance-(q-.70)*.30:1));
         }
         for(const fin of fins) {
-          const fx=u-fin.cx,fy=v-bend(fin.cx)-fin.cy,c=fin.cos,s=fin.sin;
+          const fx=u-fin.cx,fy=v-fin.bend-fin.cy,c=fin.cos,s=fin.sin;
           const along=fx*c+fy*s,across=-fx*s+fy*c;
           include('fin',across,(1-(along/.14)**2-(across/.056)**2)*.028);
         }
@@ -152,20 +165,15 @@ function createKoiScene(canvas, options={}) {
           const fx=u+.30,fy=b-side*.085;
           include('fin',fy,(1-(fx/.092)**2-(fy/.042)**2)*.021);
         }
-        return best;
+        return hit.coverage?hit:null;
       }
-      const palettes={
-        white:{base:'#dddcc1',light:'#f0ecd6',edge:'#adbea3',red:'#ba6850',redLight:'#d78262',fin:'#b9cbb1',ink:'#3d6654'},
-        gold:{base:'#bc9750',light:'#d6b665',edge:'#91894b',red:'#bd7d42',redLight:'#d59a50',fin:'#ad9a50',ink:'#405a37'},
-        ochre:{base:'#aa8743',light:'#c29a4d',edge:'#7f7840',red:'#996b3c',redLight:'#b88542',fin:'#8b8747',ink:'#3b5436'},
-      };
       const palette=palettes[kind];
       // Sample a tight world-space box to keep all characters upright on the water grid.
       const halfX=length*(Math.abs(cos)*.85+Math.abs(sin)*.34);
       const halfY=length*(Math.abs(sin)*.85+Math.abs(cos)*.34);
       const startX=Math.floor((x-halfX)/cell),endX=Math.ceil((x+halfX)/cell);
       const startY=Math.floor((y-halfY)/stepY),endY=Math.ceil((y+halfY)/stepY);
-      const tiles=[];
+      const tiles=spec.tiles;let tileCount=0;
       for(let row=startY;row<=endY;row++)for(let col=startX;col<=endX;col++) {
         const px=(col+.5)*cell,py=(row+.5)*stepY;
         if(px< -cell||px>w+cell||py< -stepY||py>h+stepY)continue;
@@ -187,12 +195,14 @@ function createKoiScene(canvas, options={}) {
           color=Math.abs(p.b)>.07?palette.light:palette.fin;
           alpha=.70;char=n>.5?'/':':';
         } else char=n>.5?'/':'·';
-        tiles.push({px,py,color,char,alpha:alpha*p.coverage,coverage:p.coverage});
+        const tile=tiles[tileCount]||(tiles[tileCount]={});tileCount++;
+        tile.px=px;tile.py=py;tile.color=color;tile.char=char;tile.alpha=alpha*p.coverage;tile.coverage=p.coverage;
       }
       ctx.globalAlpha=spec.depth*.16;ctx.fillStyle='#123f37';
-      for(const tile of tiles){ctx.globalAlpha=spec.depth*.13*tile.coverage;ctx.fillRect(tile.px-cell*.25+5*scale,tile.py-stepY*.2+10*scale,cell,stepY);}
+      for(let i=0;i<tileCount;i++){const tile=tiles[i];ctx.globalAlpha=spec.depth*.13*tile.coverage;ctx.fillRect(tile.px-cell*.25+5*scale,tile.py-stepY*.2+10*scale,cell,stepY);}
       ctx.font=`${cell*.92}px Consolas,monospace`;
-      for(const tile of tiles) {
+      for(let i=0;i<tileCount;i++) {
+        const tile=tiles[i];
         ctx.globalAlpha=spec.depth*tile.alpha;ctx.fillStyle=tile.color;
         const size=.65+.35*tile.coverage;
         ctx.fillRect(tile.px-cell*.45*size,tile.py-stepY*.45*size,cell*.90*size,stepY*.90*size);
@@ -203,7 +213,7 @@ function createKoiScene(canvas, options={}) {
       // A short, soft wake trails the tail; it is never a rigid fish outline.
       ctx.font=`${cell*.72}px Consolas,monospace`;
       for(let i=0;i<6;i++) {
-        const u=-.88-i*.055,v=bend(-.83)+Math.sin(beat-i*.7)*.025;
+        const u=-.88-i*.055,v=tailEnd+Math.sin(beat-i*.7)*.025;
         ctx.fillStyle=`rgba(172,218,178,${(.12-i*.017)*spec.depth})`;
         ctx.fillText('·',x+(u*cos-v*sin)*length,y+(u*sin+v*cos)*length);
       }
@@ -263,7 +273,7 @@ function createKoiScene(canvas, options={}) {
     veil.addColorStop(0,'rgba(15,48,41,0)');veil.addColorStop(.29,`rgba(15,48,41,${alpha})`);
     veil.addColorStop(.73,`rgba(15,48,41,${alpha})`);veil.addColorStop(1,'rgba(15,48,41,0)');
     ctx.fillStyle=veil;ctx.fillRect(0,0,w,h);
-  },{pointerMotion:true,maxPixels:3000000});
+  },{pointerMotion:true,maxPixels:3000000,clickInterval:500});
 }
 
 function createKoiWaterGrid(width,height,cell) {
@@ -271,11 +281,18 @@ function createKoiWaterGrid(width,height,cell) {
   let current=new Float32Array(size),previous=new Float32Array(size),next=new Float32Array(size);
   const offsetX=new Float32Array(size),offsetY=new Float32Array(size),light=new Float32Array(size);
   const dynamic=new Uint8Array(size);
+  const still={x:0,y:0,light:0};
   let elapsed=0,accumulator=0,lastImpact=-100,energy=0,tailGain=1;
+  // The stencil propagates at most one cell per simulation step. Cells outside
+  // this expanding rectangle are exactly zero, so their math can be skipped.
+  let left=columns,right=-1,top=rows,bottom=-1;
   function impact(x,y) {
     const cx=x/cell,cy=y/cell;
-    for(let row=Math.max(1,Math.floor(cy-7));row<=Math.min(rows-2,Math.ceil(cy+7));row++) {
-      for(let col=Math.max(1,Math.floor(cx-7));col<=Math.min(columns-2,Math.ceil(cx+7));col++) {
+    const x0=Math.max(1,Math.floor(cx-7)),x1=Math.min(columns-2,Math.ceil(cx+7));
+    const y0=Math.max(1,Math.floor(cy-7)),y1=Math.min(rows-2,Math.ceil(cy+7));
+    if(x0<=x1&&y0<=y1){left=Math.min(left,x0);right=Math.max(right,x1);top=Math.min(top,y0);bottom=Math.max(bottom,y1);}
+    for(let row=y0;row<=y1;row++) {
+      for(let col=x0;col<=x1;col++) {
         const dx=col-cx,dy=(row-cy)/.78,d2=dx*dx+dy*dy;
         const press=-2.8*Math.exp(-d2/5.0)+.42*Math.exp(-d2/19);
         const index=row*columns+col;
@@ -289,7 +306,7 @@ function createKoiWaterGrid(width,height,cell) {
   }
   function derive() {
     energy=0;
-    for(let row=1;row<rows-1;row++)for(let col=1;col<columns-1;col++){
+    for(let row=Math.max(1,top-1);row<=Math.min(rows-2,bottom+1);row++)for(let col=Math.max(1,left-1);col<=Math.min(columns-2,right+1);col++){
       const i=row*columns+col,h=current[i];
       const gx=(current[i+1]-current[i-1])*.5,gy=(current[i+columns]-current[i-columns])*.5;
       offsetX[i]=Math.tanh(gx*4.2)*cell*.35;
@@ -309,12 +326,14 @@ function createKoiWaterGrid(width,height,cell) {
     const attenuation=gain/tailGain;tailGain=gain;
     if(!gain){
       current.fill(0);previous.fill(0);next.fill(0);offsetX.fill(0);offsetY.fill(0);light.fill(0);dynamic.fill(0);energy=0;
+      left=columns;right=-1;top=rows;bottom=-1;
       accumulator=0;return;
     }
     accumulator+=Math.min(dt,.08);
     while(accumulator>=1/60){
       accumulator-=1/60;
-      for(let row=1;row<rows-1;row++)for(let col=1;col<columns-1;col++){
+      left=Math.max(1,left-1);right=Math.min(columns-2,right+1);top=Math.max(1,top-1);bottom=Math.min(rows-2,bottom+1);
+      for(let row=top;row<=bottom;row++)for(let col=left;col<=right;col++){
         const i=row*columns+col;
         const lap=(current[i-1]+current[i+1]-2*current[i])*.17+(current[i-columns]+current[i+columns]-2*current[i])*.12;
         next[i]=clamp((current[i]*2-previous[i]+lap)*.985,-4,4);
@@ -327,14 +346,19 @@ function createKoiWaterGrid(width,height,cell) {
     derive();
   }
   function sample(x,y) {
-    if(!energy)return {x:0,y:0,light:0};
+    if(!energy)return still;
     const fx=clamp(x/cell,0,columns-1.001),fy=clamp(y/cell,0,rows-1.001);
     const col=Math.floor(fx),row=Math.floor(fy),tx=fx-col,ty=fy-row,i=row*columns+col;
     const blend=array=>array[i]*(1-tx)*(1-ty)+array[i+1]*tx*(1-ty)+array[i+columns]*(1-tx)*ty+array[i+columns+1]*tx*ty;
     return {x:blend(offsetX),y:blend(offsetY),light:blend(light),height:blend(current)};
   }
   function draw(ctx) {
-    const point=i=>({x:(i%columns)*cell+offsetX[i],y:Math.floor(i/columns)*cell+offsetY[i]});
+    if(!energy){
+      ctx.beginPath();
+      for(let row=0;row<rows;row++){ctx.moveTo(0,row*cell);ctx.lineTo((columns-1)*cell,row*cell);}
+      for(let col=0;col<columns;col++){ctx.moveTo(col*cell,0);ctx.lineTo(col*cell,(rows-1)*cell);}
+      ctx.strokeStyle='rgba(176,230,182,.034)';ctx.lineWidth=.8;ctx.stroke();return;
+    }
     ctx.beginPath();
     for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){
       const i=row*columns+col,x=col*cell+offsetX[i],y=row*cell+offsetY[i];
@@ -347,18 +371,21 @@ function createKoiWaterGrid(width,height,cell) {
       if(row===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
     }
     ctx.strokeStyle='rgba(176,230,182,.034)';ctx.lineWidth=.8;ctx.stroke();
-    for(let row=1;row<rows-2;row++)for(let col=1;col<columns-2;col++){
+    for(let row=Math.max(1,top-2);row<=Math.min(rows-3,bottom+1);row++)for(let col=Math.max(1,left-2);col<=Math.min(columns-3,right+1);col++){
       const i=row*columns+col;
       let shade=(light[i]+light[i+1]+light[i+columns]+light[i+columns+1])*.25;
       if(Math.abs(shade)<.001)continue;
       // Weak reflections fade through the old drawing threshold instead of popping off.
       const reflection=clamp(Math.abs(shade)/.018,0,1);
       shade*=reflection*reflection*(3-2*reflection);
-      const a=point(i),b=point(i+1),c=point(i+columns+1),d=point(i+columns);
-      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
+      const ax=col*cell+offsetX[i],ay=row*cell+offsetY[i];
+      const bx=(col+1)*cell+offsetX[i+1],by=row*cell+offsetY[i+1];
+      const cx=(col+1)*cell+offsetX[i+columns+1],cy=(row+1)*cell+offsetY[i+columns+1];
+      const dx=col*cell+offsetX[i+columns],dy=(row+1)*cell+offsetY[i+columns];
+      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx,cy);ctx.lineTo(dx,dy);ctx.closePath();
       ctx.fillStyle=shade>0?`rgba(187,220,173,${shade*.25})`:`rgba(3,37,30,${-shade*.32})`;ctx.fill();
       // Only the grid edges facing the light catch it; no separate circular outline is drawn.
-      ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.beginPath();ctx.moveTo(dx,dy);ctx.lineTo(ax,ay);ctx.lineTo(bx,by);
       ctx.strokeStyle=shade>0?`rgba(207,232,190,${shade*.48})`:`rgba(4,34,28,${-shade*.45})`;ctx.lineWidth=.9;ctx.stroke();
     }
   }

@@ -434,7 +434,7 @@ function createClawd(stage, card, motion) {
   let alive = true, moving = motion, visible = true, hovered = false, focused = false;
   let frame = 0, last = 0, time = 0, distanceWalked = 0, replyUntil = 0, replyTimer = 0;
   let geometry = null, x = 0, target = 0, velocity = 0, lastLayout = -Infinity;
-  let nextDecision = 6;
+  let nextDecision = 6,paintedPose='',paintedPosition='',paintedAction='';
 
   function layout(force = false) {
     if (!alive || !territory.isConnected) return;
@@ -490,21 +490,28 @@ function createClawd(stage, card, motion) {
     const replyElapsed = .65 - (replyUntil - time);
     const closed = replying ? replyElapsed < .16 || (replyElapsed > .3 && replyElapsed < .44)
       : moving && !reduced.matches && time % 7.1 > 6.94;
-    context.clearRect(0, 0, CLAWD_WIDTH, CLAWD_HEIGHT);
-    context.drawImage(sprite(feet, closed), 0, 0);
-    if (replying && moving && !reduced.matches) {
-      const fade = Math.sin(Math.PI * clamp(replyElapsed / .65, 0, 1));
-      context.fillStyle = `rgba(231,177,135,${fade * .75})`;
-      for (const sx of [4, 101]) {
-        context.fillRect(sx, 17, 3, 1); context.fillRect(sx + 1, 16, 1, 3);
+    const replyingMotion=replying&&moving&&!reduced.matches,pose=`${feet}:${closed}:${replyingMotion?replyElapsed:0}`;
+    if(pose!==paintedPose){
+      paintedPose=pose;
+      context.clearRect(0, 0, CLAWD_WIDTH, CLAWD_HEIGHT);
+      context.drawImage(sprite(feet, closed), 0, 0);
+      if (replyingMotion) {
+        const fade = Math.sin(Math.PI * clamp(replyElapsed / .65, 0, 1));
+        context.fillStyle = `rgba(231,177,135,${fade * .75})`;
+        for (const sx of [4, 101]) {
+          context.fillRect(sx, 17, 3, 1); context.fillRect(sx + 1, 16, 1, 3);
+        }
       }
     }
     // Translate the whole sprite at integer pixels, preserving every internal edge.
     const left = Math.round(x - CLAWD_ANCHOR_X), top = Math.round(geometry.y - CLAWD_ANCHOR_Y);
-    canvas.style.transform = `translate(${left}px,${top}px)`;
-    hit.style.transform = `translate(${left + 4}px,${top + 6}px)`;
-    hit.style.width = '100px'; hit.style.height = '58px';
-    stage.dataset.clawdAction = replying ? 'reply' : walking ? 'walk' : 'rest';
+    const position=`${left}:${top}`,action=replying?'reply':walking?'walk':'rest';
+    if(position!==paintedPosition){
+      paintedPosition=position;canvas.style.transform = `translate(${left}px,${top}px)`;
+      hit.style.transform = `translate(${left + 4}px,${top + 6}px)`;
+      hit.style.width = '100px'; hit.style.height = '58px';
+    }
+    if(action!==paintedAction){paintedAction=action;stage.dataset.clawdAction=action;}
   }
 
   function tick(now) {
@@ -585,20 +592,39 @@ function createClawd(stage, card, motion) {
 }
 
 // Shared lifecycle for the new scenes. Claude keeps its original renderer.
-function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPixels=Infinity}={}) {
+function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPixels=Infinity,clickInterval=0}={}) {
   const ctx = canvas.getContext('2d', {alpha:false});
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let width=1, height=1, ratio=1, time=0, last=0, frame=0, resizeFrame=0;
   let alive=true, visible=true, moving=options.motion!==false, quiet=!!options.quiet;
-  let reading=quiet?1:0;
+  let reading=quiet?1:0,lastClick=-Infinity,backgroundCanvas=null;
   const hover=pointerMotion?createScenePointer(canvas,options.interactionRoot):null;
-  const clicks=[], stats={frames:0,drawMs:0,longestDrawMs:0};
+  const clicks=[], stats={frames:0,drawMs:0,longestDrawMs:0,backgroundPixels:0};
+  function releaseBackground() {
+    if(backgroundCanvas){backgroundCanvas.width=1;backgroundCanvas.height=1;backgroundCanvas=null;}
+    stats.backgroundPixels=0;
+  }
+  // One opaque backing layer per active scene, at exactly the display canvas
+  // resolution. Static previews need no second bitmap; resize/dispose releases it.
+  function background(paint) {
+    // A rounded-up edge is only partially painted by the original gradients.
+    // Flattening it would change frame-to-frame edge blending at fractional DPR.
+    const partialEdge=canvas.width>width*ratio||canvas.height>height*ratio;
+    if(partialEdge||options.preview||width<=1||height<=1||!moving||reduced.matches||document.hidden||!visible){releaseBackground();paint(ctx);return;}
+    if(!backgroundCanvas){
+      backgroundCanvas=document.createElement('canvas');
+      backgroundCanvas.width=canvas.width;backgroundCanvas.height=canvas.height;
+      const base=backgroundCanvas.getContext('2d',{alpha:false});base.setTransform(ratio,0,0,ratio,0,0);
+      paint(base);stats.backgroundPixels=canvas.width*canvas.height;
+    }
+    ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(backgroundCanvas,0,0);ctx.restore();
+  }
   function draw() {
     if(!alive)return;
     const started=performance.now();
     ctx.setTransform(ratio,0,0,ratio,0,0);
     while(clicks.length && time-clicks[0].at>1.6)clicks.shift();
-    render(ctx,{width,height,time,quiet,reading,pointer:hover?.pointer,preview:!!options.preview,clicks});
+    render(ctx,{width,height,time,quiet,reading,pointer:hover?.pointer,preview:!!options.preview,clicks,background});
     const elapsed=performance.now()-started;
     stats.drawMs=stats.drawMs*.95+elapsed*.05;
     stats.longestDrawMs=Math.max(stats.longestDrawMs,elapsed);stats.frames++;
@@ -613,17 +639,19 @@ function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPix
   function schedule() {
     cancelAnimationFrame(frame);frame=0;last=0;
     const running=alive&&moving&&!reduced.matches&&!document.hidden&&visible;
-    if(!running){reading=quiet?1:0;hover?.step(0,false);}
+    if(!running){reading=quiet?1:0;hover?.step(0,false);releaseBackground();}
     draw();if(running)frame=requestAnimationFrame(tick);
   }
   function resize() {
     if(!alive)return;
-    const box=canvas.getBoundingClientRect();width=Math.max(1,box.width);height=Math.max(1,box.height);
+    const box=canvas.getBoundingClientRect(),nextWidth=Math.max(1,box.width),nextHeight=Math.max(1,box.height);
+    if(width!==nextWidth||height!==nextHeight)releaseBackground();
+    width=nextWidth;height=nextHeight;
     // Dense water scenes cap decorative raster work on high-DPI displays. CSS
     // geometry and all host text stay at their native size and resolution.
     ratio=Math.min(devicePixelRatio||1,2,Math.max(1,Math.sqrt(maxPixels/(width*height))));
     const pixelWidth=Math.round(width*ratio),pixelHeight=Math.round(height*ratio);
-    if(canvas.width!==pixelWidth||canvas.height!==pixelHeight){canvas.width=pixelWidth;canvas.height=pixelHeight;}
+    if(canvas.width!==pixelWidth||canvas.height!==pixelHeight){releaseBackground();canvas.width=pixelWidth;canvas.height=pixelHeight;}
     draw();
   }
   const resizeObserver=new ResizeObserver(()=>{
@@ -632,7 +660,10 @@ function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPix
   const intersection=new IntersectionObserver(entries=>{visible=entries[0]?.isIntersecting??false;schedule();});intersection.observe(canvas);
   document.addEventListener('visibilitychange',schedule);reduced.addEventListener('change',schedule);
   const stopClicks=listenForBackgroundClicks(options.interactionRoot,event=>{
-    if(!moving||reduced.matches)return;
+    if(!moving||reduced.matches||document.hidden||!visible)return;
+    const now=performance.now();
+    if(now-lastClick<clickInterval)return;
+    lastClick=now;
     const box=canvas.getBoundingClientRect();
     clicks.push({x:event.clientX-box.left,y:event.clientY-box.top,at:time});
     if(clicks.length>6)clicks.shift();draw();
@@ -643,7 +674,7 @@ function createAmbientScene(canvas, options, render, {pointerMotion=false,maxPix
     update(value){moving=value.motion;quiet=value.quiet;if(!moving)clicks.length=0;schedule();},
     dispose(){alive=false;cancelAnimationFrame(frame);cancelAnimationFrame(resizeFrame);resizeObserver.disconnect();intersection.disconnect();
       document.removeEventListener('visibilitychange',schedule);reduced.removeEventListener('change',schedule);
-      stopClicks();hover?.dispose();clicks.length=0;canvas.width=1;canvas.height=1;},
+      stopClicks();hover?.dispose();releaseBackground();clicks.length=0;canvas.width=1;canvas.height=1;},
   };
 }
 
@@ -751,13 +782,15 @@ function createCloudScene(canvas, options={}) {
         positions[i].p=0;
       });
     }
-    const sky=ctx.createLinearGradient(0,0,w,0);
-    for(const [at,color] of [[0,'#70bef0'],[.12,'#6ebcf0'],[.31,'#b4dcf0'],[.75,'#bce0f2'],[.94,'#72bef0'],[1,'#7bc3f1']])sky.addColorStop(at,color);
-    ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
-    const depth=ctx.createLinearGradient(0,0,0,h);
-    depth.addColorStop(0,'rgba(255,255,255,0)');depth.addColorStop(1,'rgba(244,252,255,.24)');
-    ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
-    drawAmbientGrid(ctx,w,h,cell,'rgba(246,253,255,.025)');
+    view.background(ctx=>{
+      const sky=ctx.createLinearGradient(0,0,w,0);
+      for(const [at,color] of [[0,'#70bef0'],[.12,'#6ebcf0'],[.31,'#b4dcf0'],[.75,'#bce0f2'],[.94,'#72bef0'],[1,'#7bc3f1']])sky.addColorStop(at,color);
+      ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+      const depth=ctx.createLinearGradient(0,0,0,h);
+      depth.addColorStop(0,'rgba(255,255,255,0)');depth.addColorStop(1,'rgba(244,252,255,.24)');
+      ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+      drawAmbientGrid(ctx,w,h,cell,'rgba(246,253,255,.025)');
+    });
     ctx.font=`${Math.max(1.2,cell*.91)}px Consolas,monospace`;
     ctx.textAlign='center';ctx.textBaseline='middle';
     clouds.forEach((cloud,index)=>{
@@ -833,13 +866,15 @@ function createLagoonScene(canvas, options={}) {
         glideX:clamp(r.x+Math.cos(angle+turn*.35)*glide,-4,4)-r.x,
         glideY:clamp(r.y+Math.sin(angle+turn*.35)*glide,-4,4)-r.y};
     }
-    const sea=ctx.createLinearGradient(0,0,w,h*.16);
-    for(const[at,color]of[[0,'#43babe'],[.13,'#42c3c5'],[.32,'#206b76'],[.69,'#18586a'],[.9,'#239eb8'],[1,'#218cae']])sea.addColorStop(at,color);
-    ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
-    const depth=ctx.createLinearGradient(0,0,0,h);
-    depth.addColorStop(0,'rgba(116,239,214,.1)');depth.addColorStop(1,'rgba(3,44,66,.34)');
-    ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
-    drawAmbientGrid(ctx,w,h,cell,'rgba(154,238,218,.026)');
+    view.background(ctx=>{
+      const sea=ctx.createLinearGradient(0,0,w,h*.16);
+      for(const[at,color]of[[0,'#43babe'],[.13,'#42c3c5'],[.32,'#206b76'],[.69,'#18586a'],[.9,'#239eb8'],[1,'#218cae']])sea.addColorStop(at,color);
+      ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
+      const depth=ctx.createLinearGradient(0,0,0,h);
+      depth.addColorStop(0,'rgba(116,239,214,.1)');depth.addColorStop(1,'rgba(3,44,66,.34)');
+      ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+      drawAmbientGrid(ctx,w,h,cell,'rgba(154,238,218,.026)');
+    });
 
     // Slanting shafts and sparse caustics continue underneath the host sidebar.
     for(let i=0;i<4;i++) {
@@ -874,6 +909,7 @@ function createLagoonScene(canvas, options={}) {
         const steer=Math.sin(stroke-.8+side*.24)*.42;
         polygons.push([[-4.7,side*2.9],[-5.4,side*4.3],[-8.8+steer,side*(6+steer)],[-9,side*4.65],[-6.6,side*2.6]]);
       }
+      const finBounds=polygons.map(poly=>({left:Math.min(...poly.map(p=>p[0])),right:Math.max(...poly.map(p=>p[0])),top:Math.min(...poly.map(p=>p[1])),bottom:Math.max(...poly.map(p=>p[1]))}));
       function inside(px,py,points) {
         let hit=false;
         for(let i=0,j=points.length-1;i<points.length;j=i++) {
@@ -897,7 +933,10 @@ function createLagoonScene(canvas, options={}) {
           return 'head';
         }
         if(px< -6.7&&px> -9.7&&Math.abs(py)<(px+9.7)*.24)return 'tail';
-        for(const poly of polygons)if(inside(px,py,poly))return 'fin';
+        for(let i=0;i<polygons.length;i++){
+          const box=finBounds[i];
+          if(px>=box.left&&px<=box.right&&py>=box.top&&py<=box.bottom&&inside(px,py,polygons[i]))return 'fin';
+        }
         return '';
       }
       ctx.save();ctx.globalAlpha=far?.66:1;
@@ -1010,7 +1049,12 @@ function createKoiScene(canvas, options={}) {
     {x:.81,y:.62,length:.27,heading:.74,phase:3.2,pace:.065,kind:'ochre',depth:.64},
     {x:.16,y:.72,length:.35,heading:-.52,phase:5.3,pace:.06,kind:'white',depth:.96},
   ];
-  for(const spec of fish)spec.motion={x:spec.x,y:spec.y,heading:spec.heading,turn:0,stroke:0,avoid:0,avoidSide:0,alert:0};
+  for(const spec of fish){spec.motion={x:spec.x,y:spec.y,heading:spec.heading,turn:0,stroke:0,avoid:0,avoidSide:0,alert:0};spec.tiles=[];}
+  const palettes={
+    white:{base:'#dddcc1',light:'#f0ecd6',edge:'#adbea3',red:'#ba6850',redLight:'#d78262',fin:'#b9cbb1',ink:'#3d6654'},
+    gold:{base:'#bc9750',light:'#d6b665',edge:'#91894b',red:'#bd7d42',redLight:'#d59a50',fin:'#ad9a50',ink:'#405a37'},
+    ochre:{base:'#aa8743',light:'#c29a4d',edge:'#7f7840',red:'#996b3c',redLight:'#b88542',fin:'#8b8747',ink:'#3b5436'},
+  };
   const leaves=[
     {x:.93,y:.13,r:.062,angle:1.6,seed:13},
     {x:.91,y:.52,r:.044,angle:2.3,seed:31},
@@ -1029,7 +1073,7 @@ function createKoiScene(canvas, options={}) {
   const petalMask=['..aa..','.abba.','abbbbc','abbbcc','.bbcc.','..cc..','..d...'];
   const petalColors={a:'#ebc3b7',b:'#dca4a4',c:'#bf7e89',d:'#946675'};
   const glyphs='st%:s;';
-  let waterGrid=null,waterWidth=0,waterHeight=0,waterCell=0,waterTime=0;
+  let waterGrid=null,waterWidth=0,waterHeight=0,waterCell=0,waterTime=0,waterMarks=[];
   const handledClicks=new WeakSet();
   return createAmbientScene(canvas,options,(ctx,view)=>{
     const {width:w,height:h,time:t,reading,preview,clicks,pointer}=view;
@@ -1038,6 +1082,11 @@ function createKoiScene(canvas, options={}) {
     const stepY=cell*1.12;
     if(!waterGrid||waterWidth!==w||waterHeight!==h||waterCell!==cell){
       waterGrid=createKoiWaterGrid(w,h,cell);waterWidth=w;waterHeight=h;waterCell=cell;waterTime=t;
+      waterMarks=[];
+      for(let row=0;row<h/stepY;row+=2)for(let col=0;col<w/cell;col+=2){
+        const n=noise(col*19+row*37);if(n<.57)continue;
+        waterMarks.push({x:(col+.5)*cell,y:(row+.5)*stepY,phase:col*.18+row*.31,glyph:n>.88?'~':n>.72?':':'·'});
+      }
     }
     const dt=clamp(t-waterTime,0,.05),freshClicks=[];
     waterGrid.step(dt);waterTime=t;
@@ -1045,12 +1094,14 @@ function createKoiScene(canvas, options={}) {
     for(const click of clicks)if(!handledClicks.has(click)){
       handledClicks.add(click);waterGrid.impact(click.x,click.y);freshClicks.push(click);
     }
-    const water=ctx.createLinearGradient(0,0,w,0);
-    for(const [at,color] of [[0,'#429d8b'],[.12,'#58b3a0'],[.32,'#204f48'],[.70,'#1c4942'],[.91,'#318b79'],[1,'#3f9c86']])water.addColorStop(at,color);
-    ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
-    const depth=ctx.createLinearGradient(0,0,0,h);
-    depth.addColorStop(0,'rgba(134,210,178,.10)');depth.addColorStop(1,'rgba(4,46,41,.24)');
-    ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+    view.background(ctx=>{
+      const water=ctx.createLinearGradient(0,0,w,0);
+      for(const [at,color] of [[0,'#429d8b'],[.12,'#58b3a0'],[.32,'#204f48'],[.70,'#1c4942'],[.91,'#318b79'],[1,'#3f9c86']])water.addColorStop(at,color);
+      ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
+      const depth=ctx.createLinearGradient(0,0,0,h);
+      depth.addColorStop(0,'rgba(134,210,178,.10)');depth.addColorStop(1,'rgba(4,46,41,.24)');
+      ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+    });
     waterGrid.draw(ctx);
 
     // Low-frequency reflections move through the whole workspace, including the sidebar.
@@ -1061,15 +1112,13 @@ function createKoiScene(canvas, options={}) {
       ctx.fillStyle=light;ctx.fillRect(x-w*.09,0,w*.18,h);
     }
     ctx.font=`${cell*.78}px Consolas,monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
-    for(let row=0;row<h/stepY;row+=2)for(let col=0;col<w/cell;col+=2) {
-      const n=noise(col*19+row*37);
-      if(n<.57)continue;
-      const ox=(col+.5)*cell,oy=(row+.5)*stepY,wave=waterGrid.sample(ox,oy);
+    for(const mark of waterMarks) {
+      const ox=mark.x,oy=mark.y,wave=waterGrid.sample(ox,oy);
       const x=ox+wave.x,y=oy+wave.y;
       const edge=.22+.78*Math.abs(x/w-.5)*2;
-      const alpha=Math.min(.38,(.025+.055*(.5+.5*Math.sin(col*.18+row*.31+t*.30)))*edge+Math.abs(wave.light)*.28);
+      const alpha=Math.min(.38,(.025+.055*(.5+.5*Math.sin(mark.phase+t*.30)))*edge+Math.abs(wave.light)*.28);
       ctx.fillStyle=`rgba(181,227,185,${alpha})`;
-      ctx.fillText(n>.88?'~':n>.72?':':'·',x,y);
+      ctx.fillText(mark.glyph,x,y);
     }
 
     function koi(spec) {
@@ -1088,27 +1137,30 @@ function createKoiScene(canvas, options={}) {
       const fins=[-1,1].map(side=>{
         const sweep=Math.sin(beat+.6+side*.45);
         const angle=side*(.62+sweep*.18);
-        return {cx:.095-sweep*.018,cy:side*(.158+sweep*.025),cos:Math.cos(angle),sin:Math.sin(angle)};
+        const cx=.095-sweep*.018;
+        return {cx,cy:side*(.158+sweep*.025),cos:Math.cos(angle),sin:Math.sin(angle),bend:bend(cx)};
       });
       const feather=cell/length*.52;
+      const tailStart=bend(-.47),tailEnd=bend(-.83),hit={type:'',b:0,radius:0,coverage:0};
+      function include(type,b,distance,radius=0) {
+        if(distance<=-feather)return;
+        const p=clamp(.5+distance/(feather*2),0,1),coverage=p*p*(3-2*p);
+        if(coverage>hit.coverage){hit.type=type;hit.b=b;hit.radius=radius;hit.coverage=coverage;}
+      }
       function part(u,v) {
-        const b=v-bend(u),radius=bodyWidth(u);
-        let best=null;
-        function include(type,b,distance,radius=0) {
-          const p=clamp(.5+distance/(feather*2),0,1),coverage=p*p*(3-2*p);
-          if(coverage>(best?.coverage||0))best={type,b,radius,coverage};
-        }
+        const b=v-bend(u),radius=Math.abs(b)<.163*1.2+feather?bodyWidth(u):0;
+        hit.coverage=0;
         if(radius)include('body',b,radius-Math.abs(b),radius);
-        if(best?.coverage===1)return best;
+        if(hit.coverage===1)return hit;
         // The tail grows from a narrow peduncle into two flexible lobes.
         const q=(-u-.47)/.36;
         if(q>0&&q<1) {
-          const mid=bend(-.47)+(bend(-.83)-bend(-.47))*q;
+          const mid=tailStart+(tailEnd-tailStart)*q;
           const distance=Math.abs(v-mid),fan=.024+q*.17;
           include('tail',v-mid,Math.min(fan-distance,q*.36,(1-q)*.36,q>.70?distance-(q-.70)*.30:1));
         }
         for(const fin of fins) {
-          const fx=u-fin.cx,fy=v-bend(fin.cx)-fin.cy,c=fin.cos,s=fin.sin;
+          const fx=u-fin.cx,fy=v-fin.bend-fin.cy,c=fin.cos,s=fin.sin;
           const along=fx*c+fy*s,across=-fx*s+fy*c;
           include('fin',across,(1-(along/.14)**2-(across/.056)**2)*.028);
         }
@@ -1116,20 +1168,15 @@ function createKoiScene(canvas, options={}) {
           const fx=u+.30,fy=b-side*.085;
           include('fin',fy,(1-(fx/.092)**2-(fy/.042)**2)*.021);
         }
-        return best;
+        return hit.coverage?hit:null;
       }
-      const palettes={
-        white:{base:'#dddcc1',light:'#f0ecd6',edge:'#adbea3',red:'#ba6850',redLight:'#d78262',fin:'#b9cbb1',ink:'#3d6654'},
-        gold:{base:'#bc9750',light:'#d6b665',edge:'#91894b',red:'#bd7d42',redLight:'#d59a50',fin:'#ad9a50',ink:'#405a37'},
-        ochre:{base:'#aa8743',light:'#c29a4d',edge:'#7f7840',red:'#996b3c',redLight:'#b88542',fin:'#8b8747',ink:'#3b5436'},
-      };
       const palette=palettes[kind];
       // Sample a tight world-space box to keep all characters upright on the water grid.
       const halfX=length*(Math.abs(cos)*.85+Math.abs(sin)*.34);
       const halfY=length*(Math.abs(sin)*.85+Math.abs(cos)*.34);
       const startX=Math.floor((x-halfX)/cell),endX=Math.ceil((x+halfX)/cell);
       const startY=Math.floor((y-halfY)/stepY),endY=Math.ceil((y+halfY)/stepY);
-      const tiles=[];
+      const tiles=spec.tiles;let tileCount=0;
       for(let row=startY;row<=endY;row++)for(let col=startX;col<=endX;col++) {
         const px=(col+.5)*cell,py=(row+.5)*stepY;
         if(px< -cell||px>w+cell||py< -stepY||py>h+stepY)continue;
@@ -1151,12 +1198,14 @@ function createKoiScene(canvas, options={}) {
           color=Math.abs(p.b)>.07?palette.light:palette.fin;
           alpha=.70;char=n>.5?'/':':';
         } else char=n>.5?'/':'·';
-        tiles.push({px,py,color,char,alpha:alpha*p.coverage,coverage:p.coverage});
+        const tile=tiles[tileCount]||(tiles[tileCount]={});tileCount++;
+        tile.px=px;tile.py=py;tile.color=color;tile.char=char;tile.alpha=alpha*p.coverage;tile.coverage=p.coverage;
       }
       ctx.globalAlpha=spec.depth*.16;ctx.fillStyle='#123f37';
-      for(const tile of tiles){ctx.globalAlpha=spec.depth*.13*tile.coverage;ctx.fillRect(tile.px-cell*.25+5*scale,tile.py-stepY*.2+10*scale,cell,stepY);}
+      for(let i=0;i<tileCount;i++){const tile=tiles[i];ctx.globalAlpha=spec.depth*.13*tile.coverage;ctx.fillRect(tile.px-cell*.25+5*scale,tile.py-stepY*.2+10*scale,cell,stepY);}
       ctx.font=`${cell*.92}px Consolas,monospace`;
-      for(const tile of tiles) {
+      for(let i=0;i<tileCount;i++) {
+        const tile=tiles[i];
         ctx.globalAlpha=spec.depth*tile.alpha;ctx.fillStyle=tile.color;
         const size=.65+.35*tile.coverage;
         ctx.fillRect(tile.px-cell*.45*size,tile.py-stepY*.45*size,cell*.90*size,stepY*.90*size);
@@ -1167,7 +1216,7 @@ function createKoiScene(canvas, options={}) {
       // A short, soft wake trails the tail; it is never a rigid fish outline.
       ctx.font=`${cell*.72}px Consolas,monospace`;
       for(let i=0;i<6;i++) {
-        const u=-.88-i*.055,v=bend(-.83)+Math.sin(beat-i*.7)*.025;
+        const u=-.88-i*.055,v=tailEnd+Math.sin(beat-i*.7)*.025;
         ctx.fillStyle=`rgba(172,218,178,${(.12-i*.017)*spec.depth})`;
         ctx.fillText('·',x+(u*cos-v*sin)*length,y+(u*sin+v*cos)*length);
       }
@@ -1227,7 +1276,7 @@ function createKoiScene(canvas, options={}) {
     veil.addColorStop(0,'rgba(15,48,41,0)');veil.addColorStop(.29,`rgba(15,48,41,${alpha})`);
     veil.addColorStop(.73,`rgba(15,48,41,${alpha})`);veil.addColorStop(1,'rgba(15,48,41,0)');
     ctx.fillStyle=veil;ctx.fillRect(0,0,w,h);
-  },{pointerMotion:true,maxPixels:3000000});
+  },{pointerMotion:true,maxPixels:3000000,clickInterval:500});
 }
 
 function createKoiWaterGrid(width,height,cell) {
@@ -1235,11 +1284,18 @@ function createKoiWaterGrid(width,height,cell) {
   let current=new Float32Array(size),previous=new Float32Array(size),next=new Float32Array(size);
   const offsetX=new Float32Array(size),offsetY=new Float32Array(size),light=new Float32Array(size);
   const dynamic=new Uint8Array(size);
+  const still={x:0,y:0,light:0};
   let elapsed=0,accumulator=0,lastImpact=-100,energy=0,tailGain=1;
+  // The stencil propagates at most one cell per simulation step. Cells outside
+  // this expanding rectangle are exactly zero, so their math can be skipped.
+  let left=columns,right=-1,top=rows,bottom=-1;
   function impact(x,y) {
     const cx=x/cell,cy=y/cell;
-    for(let row=Math.max(1,Math.floor(cy-7));row<=Math.min(rows-2,Math.ceil(cy+7));row++) {
-      for(let col=Math.max(1,Math.floor(cx-7));col<=Math.min(columns-2,Math.ceil(cx+7));col++) {
+    const x0=Math.max(1,Math.floor(cx-7)),x1=Math.min(columns-2,Math.ceil(cx+7));
+    const y0=Math.max(1,Math.floor(cy-7)),y1=Math.min(rows-2,Math.ceil(cy+7));
+    if(x0<=x1&&y0<=y1){left=Math.min(left,x0);right=Math.max(right,x1);top=Math.min(top,y0);bottom=Math.max(bottom,y1);}
+    for(let row=y0;row<=y1;row++) {
+      for(let col=x0;col<=x1;col++) {
         const dx=col-cx,dy=(row-cy)/.78,d2=dx*dx+dy*dy;
         const press=-2.8*Math.exp(-d2/5.0)+.42*Math.exp(-d2/19);
         const index=row*columns+col;
@@ -1253,7 +1309,7 @@ function createKoiWaterGrid(width,height,cell) {
   }
   function derive() {
     energy=0;
-    for(let row=1;row<rows-1;row++)for(let col=1;col<columns-1;col++){
+    for(let row=Math.max(1,top-1);row<=Math.min(rows-2,bottom+1);row++)for(let col=Math.max(1,left-1);col<=Math.min(columns-2,right+1);col++){
       const i=row*columns+col,h=current[i];
       const gx=(current[i+1]-current[i-1])*.5,gy=(current[i+columns]-current[i-columns])*.5;
       offsetX[i]=Math.tanh(gx*4.2)*cell*.35;
@@ -1273,12 +1329,14 @@ function createKoiWaterGrid(width,height,cell) {
     const attenuation=gain/tailGain;tailGain=gain;
     if(!gain){
       current.fill(0);previous.fill(0);next.fill(0);offsetX.fill(0);offsetY.fill(0);light.fill(0);dynamic.fill(0);energy=0;
+      left=columns;right=-1;top=rows;bottom=-1;
       accumulator=0;return;
     }
     accumulator+=Math.min(dt,.08);
     while(accumulator>=1/60){
       accumulator-=1/60;
-      for(let row=1;row<rows-1;row++)for(let col=1;col<columns-1;col++){
+      left=Math.max(1,left-1);right=Math.min(columns-2,right+1);top=Math.max(1,top-1);bottom=Math.min(rows-2,bottom+1);
+      for(let row=top;row<=bottom;row++)for(let col=left;col<=right;col++){
         const i=row*columns+col;
         const lap=(current[i-1]+current[i+1]-2*current[i])*.17+(current[i-columns]+current[i+columns]-2*current[i])*.12;
         next[i]=clamp((current[i]*2-previous[i]+lap)*.985,-4,4);
@@ -1291,14 +1349,19 @@ function createKoiWaterGrid(width,height,cell) {
     derive();
   }
   function sample(x,y) {
-    if(!energy)return {x:0,y:0,light:0};
+    if(!energy)return still;
     const fx=clamp(x/cell,0,columns-1.001),fy=clamp(y/cell,0,rows-1.001);
     const col=Math.floor(fx),row=Math.floor(fy),tx=fx-col,ty=fy-row,i=row*columns+col;
     const blend=array=>array[i]*(1-tx)*(1-ty)+array[i+1]*tx*(1-ty)+array[i+columns]*(1-tx)*ty+array[i+columns+1]*tx*ty;
     return {x:blend(offsetX),y:blend(offsetY),light:blend(light),height:blend(current)};
   }
   function draw(ctx) {
-    const point=i=>({x:(i%columns)*cell+offsetX[i],y:Math.floor(i/columns)*cell+offsetY[i]});
+    if(!energy){
+      ctx.beginPath();
+      for(let row=0;row<rows;row++){ctx.moveTo(0,row*cell);ctx.lineTo((columns-1)*cell,row*cell);}
+      for(let col=0;col<columns;col++){ctx.moveTo(col*cell,0);ctx.lineTo(col*cell,(rows-1)*cell);}
+      ctx.strokeStyle='rgba(176,230,182,.034)';ctx.lineWidth=.8;ctx.stroke();return;
+    }
     ctx.beginPath();
     for(let row=0;row<rows;row++)for(let col=0;col<columns;col++){
       const i=row*columns+col,x=col*cell+offsetX[i],y=row*cell+offsetY[i];
@@ -1311,18 +1374,21 @@ function createKoiWaterGrid(width,height,cell) {
       if(row===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
     }
     ctx.strokeStyle='rgba(176,230,182,.034)';ctx.lineWidth=.8;ctx.stroke();
-    for(let row=1;row<rows-2;row++)for(let col=1;col<columns-2;col++){
+    for(let row=Math.max(1,top-2);row<=Math.min(rows-3,bottom+1);row++)for(let col=Math.max(1,left-2);col<=Math.min(columns-3,right+1);col++){
       const i=row*columns+col;
       let shade=(light[i]+light[i+1]+light[i+columns]+light[i+columns+1])*.25;
       if(Math.abs(shade)<.001)continue;
       // Weak reflections fade through the old drawing threshold instead of popping off.
       const reflection=clamp(Math.abs(shade)/.018,0,1);
       shade*=reflection*reflection*(3-2*reflection);
-      const a=point(i),b=point(i+1),c=point(i+columns+1),d=point(i+columns);
-      ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
+      const ax=col*cell+offsetX[i],ay=row*cell+offsetY[i];
+      const bx=(col+1)*cell+offsetX[i+1],by=row*cell+offsetY[i+1];
+      const cx=(col+1)*cell+offsetX[i+columns+1],cy=(row+1)*cell+offsetY[i+columns+1];
+      const dx=col*cell+offsetX[i+columns],dy=(row+1)*cell+offsetY[i+columns];
+      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx,cy);ctx.lineTo(dx,dy);ctx.closePath();
       ctx.fillStyle=shade>0?`rgba(187,220,173,${shade*.25})`:`rgba(3,37,30,${-shade*.32})`;ctx.fill();
       // Only the grid edges facing the light catch it; no separate circular outline is drawn.
-      ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(a.x,a.y);ctx.lineTo(b.x,b.y);
+      ctx.beginPath();ctx.moveTo(dx,dy);ctx.lineTo(ax,ay);ctx.lineTo(bx,by);
       ctx.strokeStyle=shade>0?`rgba(207,232,190,${shade*.48})`:`rgba(4,34,28,${-shade*.45})`;ctx.lineWidth=.9;ctx.stroke();
     }
   }
@@ -1339,6 +1405,19 @@ function createJellyfishScene(canvas, options={}) {
     {x:.74,y:.79,size:.24,phase:1.2,period:6.9,seed:193,color:[104,153,176],light:[155,200,207],far:true,opacity:.28},
   ].map(jelly=>({...jelly,ox:0,oy:0,vx:0,vy:0,burst:-100,px:0,py:0}));
   const layers=[...jellyfish].sort((a,b)=>a.size-b.size);
+  for(const jelly of jellyfish){
+    jelly.strands=Array.from({length:7},(_,strand)=>{
+      const length=13+Math.round(noise(jelly.seed+strand*17)*5);
+      return Array.from({length},(_,segment)=>{
+        const f=segment/(length-1),n=noise(jelly.seed+strand*73+segment*11);
+        return {f,n,alpha:(.69-f*.17)*(strand===3?.83:1)};
+      });
+    });
+  }
+  const particles=Array.from({length:94},(_,i)=>{
+    const depth=i%4===0?1:.55;
+    return {depth,x:noise(i*13+71),y:noise(i*7+43),speed:1.2+noise(i)*2.1,ink:`rgba(168,213,228,${(.055+noise(i+9)*.13)*depth})`};
+  });
   const seenClicks=new WeakSet(),events=[];
   const pulse=(time,jelly)=>(.5+.5*Math.sin(time*Math.PI*2/jelly.period+jelly.phase))**3;
   const burst=age=>age<0?0:(1-Math.exp(-age*26))*Math.exp(-age*2.3);
@@ -1395,14 +1474,16 @@ function createJellyfishScene(canvas, options={}) {
       jelly.ox=clamp(jelly.ox+jelly.vx*dt,-8,8);jelly.oy=clamp(jelly.oy+jelly.vy*dt,-9,7);
       position(jelly);
     }
-    const sea=ctx.createLinearGradient(0,0,0,h);
-    sea.addColorStop(0,'#0b3042');sea.addColorStop(.52,'#091d30');sea.addColorStop(1,'#061022');
-    ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
-    // The light and grid continue across the whole workspace, including the sidebar.
-    const water=ctx.createLinearGradient(0,0,w,0);
-    for(const [at,color] of [[0,'#124d718f'],[.16,'#1c69959c'],[.35,'#0f3e5c00'],
-      [.73,'#0f3e5c00'],[.93,'#15578b91'],[1,'#14508770']])water.addColorStop(at,color);
-    ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
+    view.background(ctx=>{
+      const sea=ctx.createLinearGradient(0,0,0,h);
+      sea.addColorStop(0,'#0b3042');sea.addColorStop(.52,'#091d30');sea.addColorStop(1,'#061022');
+      ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
+      // The light and grid continue across the whole workspace, including the sidebar.
+      const water=ctx.createLinearGradient(0,0,w,0);
+      for(const [at,color] of [[0,'#124d718f'],[.16,'#1c69959c'],[.35,'#0f3e5c00'],
+        [.73,'#0f3e5c00'],[.93,'#15578b91'],[1,'#14508770']])water.addColorStop(at,color);
+      ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
+    });
     for(let i=0;i<3;i++) {
       const x=w*(.14+i*.37)+Math.sin(t*.065+i*1.8)*w*.025;
       ctx.save();ctx.translate(x,0);ctx.rotate(.13+i*.035);
@@ -1414,11 +1495,11 @@ function createJellyfishScene(canvas, options={}) {
     ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.font=`${Math.max(2,cell*.85)}px Consolas,monospace`;
     for(let i=0;i<94;i++) {
-      const depth=i%4===0?1:.55;
-      let x=noise(i*13+71)*w+Math.sin(t*.16+i)*cell*1.5;
-      let y=((noise(i*7+43)*h-t*(1.2+noise(i)*2.1)*cell/10)%h+h)%h;
+      const p=particles[i],depth=p.depth;
+      let x=p.x*w+Math.sin(t*.16+i)*cell*1.5;
+      let y=((p.y*h-t*p.speed*cell/10)%h+h)%h;
       if(currents.length){const flow=flowAt(x,y);x+=flow.dx*cell*3.2*depth;y+=flow.dy*cell*3.2*depth;}
-      ctx.fillStyle=`rgba(168,213,228,${(.055+noise(i+9)*.13)*depth})`;ctx.fillText(i%9===0?':':'.',x,y);
+      ctx.fillStyle=p.ink;ctx.fillText(i%9===0?':':'.',x,y);
     }
     for(const jelly of layers) {
       const unit=cell*jelly.size,step=unit*1.34,phase=jelly.phase,hit=burst(t-jelly.burst);
@@ -1427,8 +1508,8 @@ function createJellyfishScene(canvas, options={}) {
       const angle=clamp(jelly.vx/42,-.24,.24)+Math.sin(t*.24+phase)*.035;
       ctx.save();ctx.translate(jelly.px,jelly.py);ctx.rotate(angle);
       const ink=(mix,alpha=1)=>{
-        const amount=clamp(mix+hit*.35,0,1),rgb=jelly.color.map((v,i)=>Math.round(v+(jelly.light[i]-v)*amount));
-        return `rgba(${rgb.join(',')},${alpha*opacity})`;
+        const amount=clamp(mix+hit*.35,0,1),c=jelly.color,l=jelly.light;
+        return `rgba(${Math.round(c[0]+(l[0]-c[0])*amount)},${Math.round(c[1]+(l[1]-c[1])*amount)},${Math.round(c[2]+(l[2]-c[2])*amount)},${alpha*opacity})`;
       };
       if(!jelly.far) {
         const glow=ctx.createRadialGradient(0,rim*.4,unit,0,rim*.4,unit*12);
@@ -1444,9 +1525,9 @@ function createJellyfishScene(canvas, options={}) {
         }
       }
       for(let strand=0;strand<7;strand++) {
-        const root=(strand-3)*1.7,length=13+Math.round(noise(jelly.seed+strand*17)*5);
-        for(let segment=0;segment<length;segment++) {
-          const f=segment/(length-1),lag=f*1.12;
+        const root=(strand-3)*1.7,segments=jelly.strands[strand];
+        for(let segment=0;segment<segments.length;segment++) {
+          const {f,n,alpha}=segments[segment],lag=f*1.12;
           const delayed=clamp(pulse(t-lag,jelly)+burst(t-jelly.burst-f*.55)*1.48,0,1.6);
           const wave=Math.sin(t*1.65+phase+strand*.53-f*5.2),bend=Math.sin(t*.58+phase-f*2.8);
           let px=root*unit*(1-delayed*.19)+unit*(wave*(.12+f*.85)+bend*f*.5);
@@ -1455,7 +1536,6 @@ function createJellyfishScene(canvas, options={}) {
             const flow=flowAt(jelly.px+px,jelly.py+py);px+=flow.dx*unit*(.25+f*2.4);py+=flow.dy*unit*f*1.7;
           }
           px-=jelly.vx*cell*f*f*.055;py-=jelly.vy*cell*f*f*.065;
-          const n=noise(jelly.seed+strand*73+segment*11),alpha=(.69-f*.17)*(strand===3?.83:1);
           if(segment>1&&n>.72) {
             ctx.font=`${unit*.82}px Consolas,monospace`;ctx.fillStyle=ink(.3,alpha*.54);ctx.fillText(n>.9?'o':':',px,py);
           }else tile(px,py,.17+n*.46,alpha,'t:%s'[Math.floor(n*4)],.74,.91);
@@ -1494,8 +1574,9 @@ function createPaperScene(canvas, options={}) {
     {x:.17,y:.79,size:.9,angle:1.01,phase:3.3,seed:107,depth:1},
     {x:.925,y:.73,size:.88,angle:-.51,phase:4.5,seed:139,depth:1},
   ];
-  let cachedCell=0,cachedRatio=0,papers=[];
+  let cachedCell=0,cachedRatio=0,papers=[],waterLayout=null;
   const touches=[],touchDuration=2.6;
+  const stillWater={x:0,y:0,light:0};
 
   // Sample the folds on an upright character lattice. The paper's texture is
   // fixed to its hull, so the letters travel with it instead of flickering.
@@ -1537,11 +1618,31 @@ function createPaperScene(canvas, options={}) {
     return {bitmap,left,top,width:bitmap.width/ratio,height:bitmap.height/ratio};
   }
 
+  function buildWater(ctx,w,h,cell,ratio) {
+    const water=ctx.createLinearGradient(0,0,w,0);
+    for(const[at,color]of[[0,'#579da5'],[.12,'#70b5b8'],[.31,'#2b5c63'],[.63,'#244f59'],[.81,'#285d68'],[1,'#3e8c9d']])water.addColorStop(at,color);
+    const depth=ctx.createLinearGradient(0,0,0,h);
+    depth.addColorStop(0,'rgba(174,215,204,.07)');depth.addColorStop(1,'rgba(9,53,66,.16)');
+    const vertical=new Path2D(),horizontal=new Path2D(),step=Math.max(10,cell*2);
+    for(let x=0;x<w;x+=cell)for(let y=0;y<h+step;y+=step){
+      const px=Math.round(x)+.5,py=Math.min(y,h);
+      if(y===0)vertical.moveTo(px,py);else vertical.lineTo(px,py);
+    }
+    for(let y=0;y<h;y+=cell)for(let x=0;x<w+step;x+=step){
+      const px=Math.min(x,w),py=Math.round(y)+.5;
+      if(x===0)horizontal.moveTo(px,py);else horizontal.lineTo(px,py);
+    }
+    return {w,h,ratio,water,depth,vertical,horizontal};
+  }
+
   const controller=createAmbientScene(canvas,options,(ctx,view)=>{
     const {width:w,height:h,time:t,quiet,preview,clicks}=view;
     const cell=preview?Math.max(.8,Math.min(w/120,h/72)):clamp(Math.min(w/120,h/72),5,14);
     const ratio=Math.min(devicePixelRatio||1,2);
-    if(cell!==cachedCell||ratio!==cachedRatio){papers=boats.map(boat=>buildBoat(boat,cell,ratio));cachedCell=cell;cachedRatio=ratio;}
+    if(cell!==cachedCell||ratio!==cachedRatio){
+      for(const paper of papers){paper.bitmap.width=1;paper.bitmap.height=1;}
+      papers=boats.map(boat=>buildBoat(boat,cell,ratio));cachedCell=cell;cachedRatio=ratio;
+    }
     // The shared click list expires at 1.6 s. Retain at most four touches so
     // the selected water response can finish its 2.6 s decay without a cut.
     while(touches.length&&t-touches[0].at>=touchDuration)touches.shift();
@@ -1554,6 +1655,7 @@ function createPaperScene(canvas, options={}) {
       return {x:click.x,y:click.y,front:age*125,fade:Math.sin(Math.PI*age/touchDuration)**.65*(quiet?.55:1),phase:noise(click.x+click.y)*Math.PI*2};
     });
     function deformation(x,y) {
+      if(!waves.length)return stillWater;
       let shiftX=0,shiftY=0,light=0;
       for(const wave of waves) {
         const dx=x-wave.x,dy=(y-wave.y)*1.55,r=Math.hypot(dx,dy),d=(r-wave.front)/44;
@@ -1565,28 +1667,32 @@ function createPaperScene(canvas, options={}) {
       }
       return {x:shiftX,y:shiftY,light};
     }
-    const water=ctx.createLinearGradient(0,0,w,0);
-    for(const[at,color]of[[0,'#579da5'],[.12,'#70b5b8'],[.31,'#2b5c63'],[.63,'#244f59'],[.81,'#285d68'],[1,'#3e8c9d']])water.addColorStop(at,color);
-    ctx.fillStyle=water;ctx.fillRect(0,0,w,h);
-    const depth=ctx.createLinearGradient(0,0,0,h);
-    depth.addColorStop(0,'rgba(174,215,204,.07)');depth.addColorStop(1,'rgba(9,53,66,.16)');
-    ctx.fillStyle=depth;ctx.fillRect(0,0,w,h);
+    // This renderer intentionally retains its water compositing from frame to
+    // frame. Cache the gradients, not a flattened bitmap, to preserve it exactly.
+    if(!waterLayout||waterLayout.w!==w||waterLayout.h!==h||waterLayout.ratio!==ratio){
+      waterLayout=buildWater(ctx,w,h,cell,ratio);
+    }
+    ctx.fillStyle=waterLayout.water;ctx.fillRect(0,0,w,h);
+    ctx.fillStyle=waterLayout.depth;ctx.fillRect(0,0,w,h);
     if(cell>=2) {
       const step=Math.max(10,cell*2);
       ctx.strokeStyle='rgba(186,229,218,.035)';ctx.lineWidth=1;
       // Use the same lattice paths before, during and after a touch so the
       // untouched water does not change brightness when the wave starts.
-      ctx.beginPath();
-      for(let x=0;x<w;x+=cell)for(let y=0;y<h+step;y+=step) {
-        const px=Math.round(x)+.5,py=Math.min(y,h),q=deformation(px,py);
-        if(y===0)ctx.moveTo(px+q.x,py+q.y);else ctx.lineTo(px+q.x,py+q.y);
+      if(!waves.length){ctx.stroke(waterLayout.vertical);ctx.stroke(waterLayout.horizontal);}
+      else {
+        ctx.beginPath();
+        for(let x=0;x<w;x+=cell)for(let y=0;y<h+step;y+=step) {
+          const px=Math.round(x)+.5,py=Math.min(y,h),q=deformation(px,py);
+          if(y===0)ctx.moveTo(px+q.x,py+q.y);else ctx.lineTo(px+q.x,py+q.y);
+        }
+        ctx.stroke();ctx.beginPath();
+        for(let y=0;y<h;y+=cell)for(let x=0;x<w+step;x+=step) {
+          const px=Math.min(x,w),py=Math.round(y)+.5,q=deformation(px,py);
+          if(x===0)ctx.moveTo(px+q.x,py+q.y);else ctx.lineTo(px+q.x,py+q.y);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();ctx.beginPath();
-      for(let y=0;y<h;y+=cell)for(let x=0;x<w+step;x+=step) {
-        const px=Math.min(x,w),py=Math.round(y)+.5,q=deformation(px,py);
-        if(x===0)ctx.moveTo(px+q.x,py+q.y);else ctx.lineTo(px+q.x,py+q.y);
-      }
-      ctx.stroke();
     }
 
     ctx.textAlign='center';ctx.textBaseline='middle';
@@ -1661,6 +1767,8 @@ function createPaperScene(canvas, options={}) {
   });
   const update=controller.update;
   controller.update=value=>{if(!value.motion)touches.length=0;update(value);};
+  const dispose=controller.dispose;
+  controller.dispose=()=>{for(const paper of papers){paper.bitmap.width=1;paper.bitmap.height=1;}papers=[];waterLayout=null;dispose();};
   return controller;
 }
 
@@ -1677,16 +1785,25 @@ function createFirefliesScene(canvas, options={}) {
     const {width:w,height:h,time:t,quiet,preview,clicks}=view;
     const cell=preview?Math.max(1.4,Math.min(w/100,h/63)):clamp(h/63,8,16);
     const scale=cell/13;
-    const sky=ctx.createLinearGradient(0,0,0,h);
-    sky.addColorStop(0,'#07131d');sky.addColorStop(.5,'#081b1b');sky.addColorStop(1,'#0b211b');
-    ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
-    // Continuous night air across the workspace, including behind the sidebar.
-    for(const [x,y,r,color]of[[.02,.25,.43,'25,77,90'],[.97,.2,.4,'21,63,85'],[.1,.86,.38,'32,84,54'],[.93,.88,.32,'32,73,50']]) {
-      const glow=ctx.createRadialGradient(w*x,h*y,0,w*x,h*y,Math.max(w*.55,h)*r);
-      glow.addColorStop(0,`rgba(${color},.28)`);glow.addColorStop(1,`rgba(${color},0)`);
-      ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
-    }
-    drawAmbientGrid(ctx,w,h,cell,'rgba(103,160,144,.022)');
+    view.background(ctx=>{
+      const sky=ctx.createLinearGradient(0,0,0,h);
+      sky.addColorStop(0,'#07131d');sky.addColorStop(.5,'#081b1b');sky.addColorStop(1,'#0b211b');
+      ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+      // Continuous night air across the workspace, including behind the sidebar.
+      for(const [x,y,r,color]of[[.02,.25,.43,'25,77,90'],[.97,.2,.4,'21,63,85'],[.1,.86,.38,'32,84,54'],[.93,.88,.32,'32,73,50']]) {
+        const glow=ctx.createRadialGradient(w*x,h*y,0,w*x,h*y,Math.max(w*.55,h)*r);
+        glow.addColorStop(0,`rgba(${color},.28)`);glow.addColorStop(1,`rgba(${color},0)`);
+        ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+      }
+      drawAmbientGrid(ctx,w,h,cell,'rgba(103,160,144,.022)');
+      // These distant characters are rooted; cache them with the sky.
+      ctx.font=`${cell*.68}px Consolas,monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle='rgba(67,109,80,.2)';
+      for(let i=0;i<w/cell;i++) {
+        const x=i*cell,y=h*(.965-.018*Math.sin(i*.13)-.012*noise(i+71));
+        ctx.fillText(i%3?':':'.',x,y);
+      }
+    });
     // Cache the rooted character meadow. Only the tips sway; glyphs do not shuffle.
     const key=`${w}:${h}:${cell}`;
     if(key!==bankKey) {
@@ -1702,27 +1819,24 @@ function createFirefliesScene(canvas, options={}) {
             const rnd=noise(col*41+row*17+layer*233);
             if(row>0&&rnd<.16)continue;
             bank.push({x,y:h-(row+.5)*rowsY,unit,row,rows,n,rnd,layer,
-              glyph:'stx%:;'[Math.floor(rnd*6)]});
+              glyph:'stx%:;'[Math.floor(rnd*6)],font:`${Math.max(1.2,unit*.94)}px Consolas,monospace`,
+              fill:layer?`rgba(52,108,79,${.11+rnd*.14})`:'rgba(35,68,52,.2)',
+              ink:layer?`rgba(117,178,135,${.32+rnd*.32})`:`rgba(64,112,85,${.25+rnd*.2})`});
           }
         }
       }
     }
-    // Low distant hummocks keep depth without adding a competing horizon line.
-    ctx.font=`${cell*.68}px Consolas,monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillStyle='rgba(67,109,80,.2)';
-    for(let i=0;i<w/cell;i++) {
-      const x=i*cell,y=h*(.965-.018*Math.sin(i*.13)-.012*noise(i+71));
-      ctx.fillText(i%3?':':'.',x,y);
-    }
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    let bankFont='';
     for(const blade of bank) {
       const {unit,row,rows,n,rnd,layer}=blade;
       const tip=(row+1)/rows;
       const sway=Math.sin(t*.7+blade.x/w*7+n*.7)*unit*.15*tip*tip;
       const x=blade.x+sway,y=blade.y;
-      ctx.fillStyle=layer?`rgba(52,108,79,${.11+rnd*.14})`:'rgba(35,68,52,.2)';
+      ctx.fillStyle=blade.fill;
       ctx.fillRect(x-unit*.45,y-unit*.61,unit*.86,unit*1.19);
-      ctx.font=`${Math.max(1.2,unit*.94)}px Consolas,monospace`;
-      ctx.fillStyle=layer?`rgba(117,178,135,${.32+rnd*.32})`:`rgba(64,112,85,${.25+rnd*.2})`;
+      if(bankFont!==blade.font){ctx.font=blade.font;bankFont=blade.font;}
+      ctx.fillStyle=blade.ink;
       ctx.fillText(blade.glyph,x,y);
     }
     for(const fly of flies) {
@@ -1861,9 +1975,11 @@ function createMoonScene(canvas, options={}) {
       }
       return amount;
     }
-    ctx.fillStyle=layout.sky;ctx.fillRect(0,0,w,h);
-    for(const glow of layout.edges){ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);}
-    drawAmbientGrid(ctx,w,h,cell,'rgba(127,153,222,.022)');
+    view.background(ctx=>{
+      ctx.fillStyle=layout.sky;ctx.fillRect(0,0,w,h);
+      for(const glow of layout.edges){ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);}
+      drawAmbientGrid(ctx,w,h,cell,'rgba(127,153,222,.022)');
+    });
 
     ctx.textAlign='center';ctx.textBaseline='middle';
     for(const star of stars) {
@@ -2339,6 +2455,13 @@ function apply(ctx) {
   }
   const observer = new MutationObserver(records => {
     if (records.every(r => r.target instanceof Element && r.target.closest('.ascii-scene-layer,.ascii-clawd-stage,.ascii-picker,.ascii-transition'))) return;
+    // Plain conversation output does not change the attachment points. Keep
+    // other DOM changes observable, including controls beside the companion.
+    const controls='button,a,input,textarea,select,[contenteditable],[role="button"],[data-slot="conversation.hero.agentPreset"]';
+    const anchors=`[data-composer-card],[data-conversation-content],[data-shell-overlay],[data-rightbar-col],nav,[role="tree"],${controls}`;
+    if(records.every(r=>r.type==='childList'&&r.target instanceof Element&&r.target.closest('[data-conversation-scroll]')&&
+      !r.target.closest(controls)&&
+      ![...r.addedNodes,...r.removedNodes].some(node=>node instanceof Element&&(node.matches(anchors)||node.querySelector(anchors)))))return;
     if (!scanQueued) { scanQueued = true; queueMicrotask(scan); }
   });
   observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-content-phase"] });

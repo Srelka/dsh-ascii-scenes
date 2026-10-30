@@ -59,6 +59,25 @@ await page.evaluate(()=>findAction('Claude · 暖夜')({clientX:600,clientY:500}
 await page.waitForTimeout(900);
 assert.equal(await page.locator('.ascii-clawd').count(),1);
 assert.equal(await page.evaluate(()=>preference),'dark');
+const observerScans=await page.evaluate(async()=>{
+  const query=document.querySelector;let scans=0;
+  document.querySelector=function(selector){if(selector==='[data-shell-overlay]')scans++;return query.call(this,selector);};
+  try {
+    const flow=document.querySelector('[data-conversation-scroll]');
+    for(let i=0;i<40;i++){
+      const span=document.createElement('span');span.textContent='逐段输出的正文';flow.append(span);
+      await Promise.resolve();await Promise.resolve();
+    }
+    const text=scans,button=document.createElement('button');button.textContent='会话操作';flow.append(button);
+    await Promise.resolve();await Promise.resolve();const controlAdded=scans-text;
+    button.textContent='更新会话操作';await Promise.resolve();await Promise.resolve();const controlChanged=scans-text-controlAdded;
+    button.remove();await Promise.resolve();await Promise.resolve();
+    return {text,controlAdded,controlChanged};
+  } finally { document.querySelector=query; }
+});
+assert.equal(observerScans.text,0,'Streaming text must not rescan the application shell');
+assert.ok(observerScans.controlAdded>0,'A new conversation control must refresh companion layout');
+assert.ok(observerScans.controlChanged>0,'Control label changes must refresh companion layout');
 for(let i=0;i<25;i++) {
   await page.evaluate(()=>{
     const old=document.querySelector('[data-conversation-content]');
@@ -85,6 +104,6 @@ assert.equal(await page.evaluate(()=>document.body.hasAttribute('data-ascii-scen
 assert.equal(await page.evaluate(()=>themeListeners.length),0);
 assert.equal(await page.evaluate(()=>preference),'light','Unloading must restore the native appearance selected before the scene');
 assert.deepEqual(errors,[]);
-const result={enable:"passed",startupPlaceholderPreserved:"passed",sceneSwitchCount:8,companionIsolation:"passed",sessionRemounts:25,nativeRestore:"passed",preferenceRestore:"passed",unloadCleanup:"passed",pageErrors:errors};
+const result={enable:"passed",startupPlaceholderPreserved:"passed",sceneSwitchCount:8,companionIsolation:"passed",streamedTextScans:observerScans.text,controlMutationScans:observerScans,sessionRemounts:25,nativeRestore:"passed",preferenceRestore:"passed",unloadCleanup:"passed",pageErrors:errors};
 await writeFile(path.join(out,'plugin-result.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));await browser.close();
 
