@@ -1,0 +1,73 @@
+{
+  "name": "dsh-ascii-scenes",
+  "version": "0.5.0",
+  "type": "module",
+  "description": "Eight interactive ASCII ambient themes for DeepSeek Harness, with a scene picker and reduced-motion support.",
+  "author": "Srelka",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "dsh",
+    "theme",
+    "ascii",
+    "ambient"
+  ],
+  "homepage": "https://github.com/Srelka/dsh-ascii-scenes#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Srelka/dsh-ascii-scenes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Srelka/dsh-ascii-scenes/issues"
+  },
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./icon": "./assets/icon.svg",
+    "./locale/*": "./locale/*"
+  },
+  "icon": "./assets/icon.svg",
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "assets/icon.svg",
+    "locale",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "dsh": ">=0.2.1-rc.3 <0.3.0-0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node scripts/test-browser.mjs",
+    "demo": "node scripts/demo.mjs",
+    "demo:capture": "node scripts/capture-demo.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.64.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}

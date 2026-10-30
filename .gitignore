@@ -1,0 +1,25 @@
+node_modules/
+.artifacts/
+work/
+outputs/
+*.tgz
+.env
+.env.*
+.DS_Store
+Thumbs.db
+
+# Local development notes and reference comparisons are not release material.
+docs/*
+!docs/media/
+!docs/verification.md
+tests/cloud-drift.mjs
+tests/click-pop-browser.mjs
+tests/fireflies.mjs
+tests/honu-lagoon.mjs
+tests/jellyfish.mjs
+tests/koi-pond.mjs
+tests/moonlit.mjs
+tests/paper-boats.mjs
+tests/shell-browser.mjs
+tests/visual-equivalence.mjs
+docs/media/preview.png

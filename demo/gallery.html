@@ -1,0 +1,11 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ASCII Scenes · 八套场景</title><style>
+*{box-sizing:border-box}body{margin:0;padding:40px;background:#101519;color:#e9e5da;font-family:"Segoe UI","Microsoft YaHei",sans-serif}header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:28px}h1{margin:0;font-size:32px;letter-spacing:1px}header span{font-size:16px;color:#a8b3b7}main{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}.tile{overflow:hidden;border-radius:14px;border:1px solid #ffffff20;background:#1a2127}.tile canvas{width:100%;height:270px;display:block}.tile div{padding:16px 18px;font-size:16px;display:flex;justify-content:space-between}.tile small{color:#84949b;font-size:12px}footer{margin-top:24px;color:#91a0a6;font-size:14px;display:flex;justify-content:space-between}</style></head><body><header><h1>ASCII Scenes</h1><span>给 DeepSeek Harness 的八种心情</span></header><main></main><footer><span>字符绘制 · 轻量交互 · 可关闭动画</span><span>独立渲染演示 / dsh-ascii-scenes</span></footer><script src="/scenes.js"></script><script>
+const renderers=[];
+for(const [index,scene] of ASCII_SCENES.entries()){
+  const tile=document.createElement('section');tile.className='tile';
+  const canvas=document.createElement('canvas'),label=document.createElement('div'),number=document.createElement('small');
+  label.textContent=scene.label;number.textContent=String(index+1).padStart(2,'0');label.append(number);tile.append(canvas,label);document.querySelector('main').append(tile);
+  renderers.push(scene.renderer(canvas,{motion:false,preview:true,seed:42}));
+}
+window.addEventListener('pagehide',()=>renderers.forEach(renderer=>renderer.dispose()),{once:true});
+</script></body></html>
